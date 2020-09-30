@@ -1,4 +1,4 @@
-import 'package:TimeTrackingIntegration/tools/constants.dart';
+import 'package:timetrackingintegration/tools/constants.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 

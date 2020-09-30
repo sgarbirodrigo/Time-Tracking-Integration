@@ -1,6 +1,6 @@
-import 'package:TimeTrackingIntegration/tools/constants.dart';
-import 'package:TimeTrackingIntegration/tools/settings.dart';
-import 'package:TimeTrackingIntegration/tools/tools.dart';
+import 'package:timetrackingintegration/tools/constants.dart';
+import 'package:timetrackingintegration/tools/settings.dart';
+import 'package:timetrackingintegration/tools/tools.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 

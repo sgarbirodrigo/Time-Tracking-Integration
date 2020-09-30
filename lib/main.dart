@@ -1,8 +1,8 @@
-import 'package:TimeTrackingIntegration/tools/constants.dart';
-import 'package:TimeTrackingIntegration/tools/custom_scrollcontrol.dart';
-import 'package:TimeTrackingIntegration/tools/settings.dart';
-import 'package:TimeTrackingIntegration/tools/tools.dart';
-import 'package:TimeTrackingIntegration/widgets/topbar.dart';
+import 'package:timetrackingintegration/tools/constants.dart';
+import 'package:timetrackingintegration/tools/custom_scrollcontrol.dart';
+import 'package:timetrackingintegration/tools/settings.dart';
+import 'package:timetrackingintegration/tools/tools.dart';
+import 'package:timetrackingintegration/widgets/topbar.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';

@@ -1,7 +1,7 @@
 import 'dart:io';
 
-import 'package:TimeTrackingIntegration/tools/constants.dart';
-import 'package:TimeTrackingIntegration/tools/tools.dart';
+import 'package:timetrackingintegration/tools/constants.dart';
+import 'package:timetrackingintegration/tools/tools.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert' show Codec, base64, json, utf8;

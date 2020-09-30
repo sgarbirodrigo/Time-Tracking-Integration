@@ -8,7 +8,7 @@
     FlutterViewController* controller = (FlutterViewController*)self.window.rootViewController;
 
     FlutterMethodChannel* batteryChannel = [FlutterMethodChannel
-                                            methodChannelWithName:@"com.racooney.TimeTrackingIntegration/battery"
+                                            methodChannelWithName:@"com.racooney.timetrackingintegration/battery"
                                             binaryMessenger:controller.binaryMessenger];
 __weak typeof(self) weakSelf = self;
     [batteryChannel setMethodCallHandler:^(FlutterMethodCall* call, FlutterResult result) {

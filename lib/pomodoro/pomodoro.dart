@@ -1,7 +1,7 @@
-import 'package:TimeTrackingIntegration/alarm/alarm.dart';
-import 'package:TimeTrackingIntegration/jira/jira.dart';
-import 'package:TimeTrackingIntegration/pomodoro/threedots.dart';
-import 'package:TimeTrackingIntegration/tools/constants.dart';
+import 'package:timetrackingintegration/alarm/alarm.dart';
+import 'package:timetrackingintegration/jira/jira.dart';
+import 'package:timetrackingintegration/pomodoro/threedots.dart';
+import 'package:timetrackingintegration/tools/constants.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_ringtone_player/flutter_ringtone_player.dart';

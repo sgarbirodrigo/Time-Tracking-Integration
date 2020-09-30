@@ -192,7 +192,7 @@ class _MainPageState extends State<MainPage> {
       } else {
         activeColor = Colors.green;
       }*/
-      activeColor = Tools.getBackgroundColor(Duration(hours: 6), minDaily);
+      activeColor = Tools.getBackgroundColor(timeElapsedToday, minDaily);
     } catch (e) {
       isTokensOk = false;
       print("load toggl error: $e");

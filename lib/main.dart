@@ -186,12 +186,13 @@ class _MainPageState extends State<MainPage> {
       timeElapsedToday = await toggl.getAccumulatedTime(DateTime.now());
       //print("timeDebt:$timeDebt");
       //print("timeElapsedToday:$timeElapsedToday");
-      if (timeDebt.isNegative ||
+      /*if (timeDebt.isNegative ||
           timeElapsedToday.inMilliseconds < minDaily.inMilliseconds) {
         activeColor = Colors.red;
       } else {
         activeColor = Colors.green;
-      }
+      }*/
+      activeColor = Tools.getBackgroundColor(Duration(hours: 6), minDaily);
     } catch (e) {
       isTokensOk = false;
       print("load toggl error: $e");

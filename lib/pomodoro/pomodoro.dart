@@ -1,34 +1,36 @@
 import 'package:timetrackingintegration/alarm/alarm.dart';
 import 'package:timetrackingintegration/jira/jira.dart';
 import 'package:timetrackingintegration/pomodoro/threedots.dart';
-import 'package:timetrackingintegration/tools/constants.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_ringtone_player/flutter_ringtone_player.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:timetrackingintegration/tools/sql_db.dart';
 import 'package:wakelock/wakelock.dart';
 
 var PI = 3.14;
 
 class Pomodoro extends StatefulWidget {
-  /*Duration duration = Duration(seconds: 10);*/
-  Issues selectedIssue;
-  Function onFinish, onStatusChange;
+  Issue selectedIssue;
+  Function onStop, onStatusChange, onError, onPlay, onPause, onCancel;
   Color activeColor;
-  bool countTime;
+  bool countTime, isAnimating = false;
   Duration elapsedToday;
   Duration dailyMinimum;
   int numberPomodore;
 
   Pomodoro(
       {this.selectedIssue,
-      this.onFinish,
+      this.onStop,
+      this.onCancel,
       this.activeColor,
       this.onStatusChange,
       this.countTime,
       this.numberPomodore,
       this.elapsedToday,
-      this.dailyMinimum}) {
+      this.dailyMinimum,
+      this.onError,
+      this.onPause,
+      this.onPlay,
+      this.isAnimating}) {
     if (this.selectedIssue != null) {
       if (this.selectedIssue.fields != null) {
         if (this.selectedIssue.fields.summary.isEmpty) {
@@ -45,74 +47,177 @@ class Pomodoro extends StatefulWidget {
 class _PomodoroState extends State<Pomodoro> with TickerProviderStateMixin {
   bool hasUserCancelled = false;
   AnimationController animationController;
-  Duration duration = Duration(minutes: 50);
   DateTime startDate;
+  SqlDatabase sqlDatabase;
+  TimerData timerData;
+  Duration totalDuration = Duration(minutes: 0),elapsedDuration = Duration(minutes: 0);
 
   String get timerString {
-    Duration duration =
-        animationController.duration * animationController.value;
-    if (duration.inMilliseconds == 0) {
-      duration = this.duration;
+    try {
+      Duration duration =
+          animationController.duration * (animationController.value==0?1:animationController.value);
+      return '${duration.inMinutes.toString().padLeft(2, '0')}:${(duration.inSeconds % 60).toString().padLeft(2, '0')}';
+    } catch (e) {
+      print("error: ${e}");
+      return '00:00';
     }
-    return '${duration.inMinutes.toString().padLeft(2, '0')}:${(duration.inSeconds % 60).toString().padLeft(2, '0')}';
+  }
+  String get timerFutureString {
+    //todo
+    try {
+      Duration duration =
+          animationController.duration * (animationController.value==0?1:animationController.value);
+
+      return '${duration.inMinutes.toString().padLeft(2, '0')}:${(duration.inSeconds % 60).toString().padLeft(2, '0')}';
+    } catch (e) {
+      print("error: ${e}");
+      return '00:00';
+    }
   }
 
   double validWidth = 0;
 
+  _loadDB() async {
+    sqlDatabase = SqlDatabase();
+    await sqlDatabase.createInstance();
+    await _loadTimerData();
+  }
+  _loadTimerData() async {
+    timerData = await sqlDatabase.getTimerData();
+    print("Pomodore: ${timerData.toJson()}");
+    if (timerData.status == "paused") {
+      Issue jiraIssue = Issue();
+      Fields fields = Fields(summary: timerData.taskName);
+      jiraIssue.key = timerData.taskId;
+      jiraIssue.fields = fields;
+      widget.selectedIssue = jiraIssue;
+      Duration expectedDuration =
+      Duration(milliseconds: timerData.timerExpectedDurationMilli);
+      DateTime startedDate = DateTime.fromMillisecondsSinceEpoch(
+          timerData.runningTimerStartMillisinceepoch);
+      Duration elapsedDuration = Duration(milliseconds: 0);
+
+      timerData.timersQueue.forEach((Timer timer) {
+        elapsedDuration = Duration(
+            milliseconds:
+            elapsedDuration.inMilliseconds + timer.elapsedMilliseconds);
+      });
+
+      Duration restingTime = Duration(
+          milliseconds:
+          expectedDuration.inMilliseconds - elapsedDuration.inMilliseconds);
+
+      print("total: $expectedDuration - elapsed: $elapsedDuration");
+
+      this.totalDuration = expectedDuration;
+      this.elapsedDuration = elapsedDuration;
+
+      animationController.duration = this.totalDuration;
+      animationController.value = 1 -
+          (this.elapsedDuration.inMilliseconds /
+              this.totalDuration.inMilliseconds);
+      setState(() {});
+    }else if (timerData.status == "playing") {
+        Issue jiraIssue = Issue();
+        Fields fields = Fields(summary: timerData.taskName);
+        jiraIssue.key = timerData.taskId;
+        jiraIssue.fields = fields;
+        widget.selectedIssue = jiraIssue;
+        Duration expectedDuration =
+        Duration(milliseconds: timerData.timerExpectedDurationMilli);
+        DateTime startedDate = DateTime.fromMillisecondsSinceEpoch(
+            timerData.runningTimerStartMillisinceepoch);
+        Duration elapsedDuration = Duration(milliseconds: 0);
+
+        if(timerData.timersQueue!=null) {
+          timerData.timersQueue.forEach((Timer timer) {
+            elapsedDuration = Duration(
+                milliseconds:
+                elapsedDuration.inMilliseconds + timer.elapsedMilliseconds);
+          });
+        }
+        Duration restingTime = Duration(
+            milliseconds:
+            expectedDuration.inMilliseconds - elapsedDuration.inMilliseconds);
+
+        print("total: $expectedDuration - elapsed: $elapsedDuration");
+
+        this.totalDuration = expectedDuration;
+        this.elapsedDuration = elapsedDuration;
+
+        Duration runningElapsed = Duration(milliseconds: DateTime.now().millisecondsSinceEpoch - timerData.runningTimerStartMillisinceepoch);
+
+        animationController.duration = this.totalDuration;
+        double value = 1 -
+            ((this.elapsedDuration.inMilliseconds + runningElapsed.inMilliseconds) /
+                this.totalDuration.inMilliseconds);
+        if(value>0){
+          animationController.value = value;
+          animationController.reverse();
+        }else{
+          animationController.value =0;
+          finishAndSave();
+        }
+
+        setState(() {});
+      }
+  }
   @override
   void initState() {
     super.initState();
-    //print("InitState Pomodore: ${validWidth}");
+    _loadDB();
     animationController =
-        AnimationController(vsync: this, duration: this.duration)
-          ..addStatusListener((status) {
+    AnimationController(vsync: this, duration: this.totalDuration)
+      ..addStatusListener((status) {
+        if(timerData!=null){
+          if(timerData.status=="paused"){
+            widget.onStatusChange(true);
+          }else if(timerData.status=="playing"){
+            widget.onStatusChange(true);
+          }else{
             widget.onStatusChange(animationController.isAnimating);
-
-            if (status == AnimationStatus.dismissed &&
+          }
+        }
+         if (status == AnimationStatus.dismissed &&
                 animationController.value == 0 &&
                 !hasUserCancelled) {
-              //print("auto save");
               finishAndSave();
             }
-          });
+      });
+
   }
 
   void finishAndSave() {
+    widget.onStatusChange(false);
     Wakelock.disable();
     Duration elapsedTime = Duration(
         milliseconds: (((1 - animationController.value) *
                 animationController.duration.inMilliseconds))
             .toInt());
-
     Duration restTime = Duration(
         milliseconds: (animationController.value *
                 animationController.duration.inMilliseconds)
             .toInt());
     animationController.reset();
-    animationController.duration = restTime;
-    this.duration = restTime;
-
-    widget.onFinish(elapsedTime, startDate);
-    setState(() {});
-  }
-  _setNewTimer(Duration duration){
-    this.duration =
-        duration;
-    this
-        .animationController
-        .duration =
-        duration;
+    setNewTimer(restTime);
+    widget.onStop(elapsedTime, startDate);
     setState(() {});
   }
 
-  void startCounter() {
+  void setNewTimer(Duration duration) {
+    this.animationController.duration = duration;
+    setState(() {});
+  }
+
+  void playPauseCounter() {
     if (widget.selectedIssue != null) {
-      if (this.duration.inMilliseconds > 0) {
+      if (this.animationController.duration.inMilliseconds > 0) {
         Alarm alarm = Alarm();
         if (animationController.isAnimating) {
           animationController.stop();
           alarm.cancelAll();
           Wakelock.disable();
+          widget.onPause();
         } else {
           Wakelock.enable();
           hasUserCancelled = false;
@@ -120,43 +225,18 @@ class _PomodoroState extends State<Pomodoro> with TickerProviderStateMixin {
           double value = (animationController.value == 0.0)
               ? 1.0
               : animationController.value;
-
+          Duration duration_new = this.animationController.duration * value;
           alarm.scheduleNotification(
-              "Take a break!", "Pomodoro finished", this.duration * value);
+              "Take a break!", "Pomodoro finished", duration_new);
           animationController.reverse(from: value);
+          widget.onPlay(duration_new);
         }
         setState(() {});
       } else {
-        Scaffold.of(context).showSnackBar(SnackBar(
-            elevation: 4,
-            backgroundColor: Colors.white,
-            action: SnackBarAction(
-              label: "OK",
-              onPressed: () {},
-            ),
-            behavior: SnackBarBehavior.floating,
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8.0)),
-            content: Text(
-              "You should focus for more than ZERO :)",
-              style: TextStyle(color: Colors.black87),
-            )));
+        widget.onError("You should focus for more than ZERO :)");
       }
     } else {
-      Scaffold.of(context).showSnackBar(SnackBar(
-          elevation: 4,
-          backgroundColor: Colors.white,
-          action: SnackBarAction(
-            label: "OK",
-            onPressed: () {},
-          ),
-          behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(8.0)),
-          content: Text(
-            'Choose a task to work on',
-            style: TextStyle(color: Colors.black87),
-          )));
+      widget.onError("Choose a task to work on");
     }
   }
 
@@ -164,6 +244,7 @@ class _PomodoroState extends State<Pomodoro> with TickerProviderStateMixin {
     Wakelock.disable();
     hasUserCancelled = true;
     animationController.reset();
+    widget.onCancel();
     setState(() {});
   }
 
@@ -172,11 +253,8 @@ class _PomodoroState extends State<Pomodoro> with TickerProviderStateMixin {
     if (validWidth <= 0) {
       double width = MediaQuery.of(context).size.width - 64;
       double height = MediaQuery.of(context).size.height;
-      validWidth = width < height * 0.5 ? width*0.9 : height * 0.4;
-      //print("valid width: $validWidth");
-      //validWidth = 500;
+      validWidth = width < height * 0.5 ? width * 0.9 : height * 0.4;
     }
-
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: <Widget>[
@@ -266,8 +344,8 @@ class _PomodoroState extends State<Pomodoro> with TickerProviderStateMixin {
                                                   decoration: BoxDecoration(
                                                       boxShadow: <BoxShadow>[
                                                         BoxShadow(
-                                                            color: Colors.green,
-                                                            blurRadius: 0.8)
+                                                            color: Colors.white,
+                                                            blurRadius: 0.5)
                                                       ],
                                                       // border: Border.all(color: Colors.green,width: 4),
                                                       borderRadius:
@@ -283,10 +361,10 @@ class _PomodoroState extends State<Pomodoro> with TickerProviderStateMixin {
                                                           CupertinoTimerPickerMode
                                                               .hms,
                                                       initialTimerDuration:
-                                                          this.duration,
+                                                      this.totalDuration,
                                                       onTimerDurationChanged:
                                                           (Duration newTimer) {
-                                                        _setNewTimer(newTimer);
+                                                        setNewTimer(newTimer);
                                                       },
                                                     ),
                                                   )),
@@ -307,10 +385,9 @@ class _PomodoroState extends State<Pomodoro> with TickerProviderStateMixin {
                                                     ),
                                                     color: Colors.white,
                                                     onPressed: () {
-                                                      _setNewTimer(
-                                                          Duration(minutes: 50));
+                                                      setNewTimer(Duration(
+                                                          minutes: 50));
                                                       Navigator.pop(context);
-
                                                     },
                                                   ),
                                                   Container(
@@ -326,10 +403,9 @@ class _PomodoroState extends State<Pomodoro> with TickerProviderStateMixin {
                                                     ),
                                                     color: Colors.white,
                                                     onPressed: () {
-                                                      _setNewTimer(
-                                                          Duration(minutes: 25));
+                                                      setNewTimer(Duration(
+                                                          minutes: 25));
                                                       Navigator.pop(context);
-
                                                     },
                                                   ),
                                                   Container(
@@ -345,10 +421,9 @@ class _PomodoroState extends State<Pomodoro> with TickerProviderStateMixin {
                                                     ),
                                                     color: Colors.white,
                                                     onPressed: () {
-                                                      _setNewTimer(
+                                                      setNewTimer(
                                                           Duration(minutes: 5));
                                                       Navigator.pop(context);
-
                                                     },
                                                   ),
                                                 ],
@@ -368,7 +443,7 @@ class _PomodoroState extends State<Pomodoro> with TickerProviderStateMixin {
                                     numberOfPomodores: widget.numberPomodore,
                                     onClick: (Duration remain) {
                                       //print("returned: $remain");
-                                      _setNewTimer(remain);
+                                      setNewTimer(remain);
                                     },
                                   )
                                 : Container(),
@@ -466,7 +541,7 @@ class _PomodoroState extends State<Pomodoro> with TickerProviderStateMixin {
                           color: widget.activeColor);
                     }),
                 onPressed: () {
-                  startCounter();
+                  playPauseCounter();
                 },
               ),
               (animationController.value > 0 &&

@@ -91,7 +91,7 @@ class Jira {
 
     try {
       (Tools.BodyBytesToJson(response.bodyBytes) as List).forEach((item) {
-        print("project: $item");
+        //print("project: $item");
         if (item["name"] != null) {
           workspaces[item["key"]] = item["name"];
         }
@@ -137,7 +137,7 @@ class JiraIssues {
   int startAt;
   int maxResults;
   int total;
-  List<Issues> issues;
+  List<Issue> issues;
 
   JiraIssues(
       {this.expand, this.startAt, this.maxResults, this.total, this.issues});
@@ -148,9 +148,9 @@ class JiraIssues {
     maxResults = json['maxResults'];
     total = json['total'];
     if (json['issues'] != null) {
-      issues = List<Issues>();
+      issues = List<Issue>();
       json['issues'].forEach((v) {
-        issues.add(Issues.fromJson(v));
+        issues.add(Issue.fromJson(v));
       });
     }
   }
@@ -168,16 +168,16 @@ class JiraIssues {
   }
 }
 
-class Issues {
+class Issue {
   String expand;
   String id;
   String self;
   String key;
   Fields fields;
 
-  Issues({this.expand, this.id, this.self, this.key, this.fields});
+  Issue({this.expand, this.id, this.self, this.key, this.fields});
 
-  Issues.fromJson(Map<String, dynamic> json) {
+  Issue.fromJson(Map<String, dynamic> json) {
     expand = json['expand'];
     id = json['id'];
     self = json['self'];

@@ -119,6 +119,7 @@ class Toggl {
       String sprint,
       bool countTime = true}) async {
     var url = 'https://www.toggl.com/api/v8/time_entries';
+    print("date: ${_convertedTogglDate(startDate)}");
     var body = json.encode({
       "time_entry": {
         "description": description,

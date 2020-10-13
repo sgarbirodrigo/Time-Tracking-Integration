@@ -44,7 +44,7 @@ class _ModalWithNavigatorState extends State<ModalWithNavigator> {
   String jiraEmail,
       jiraToken,
       jiraDomain,
-      jiraSelectedProject_id,
+      jiraSelectedProject_name,
       togglToken,
       togglSelectedWorkspace_name,
       togglSelectedProject_name;
@@ -63,9 +63,8 @@ class _ModalWithNavigatorState extends State<ModalWithNavigator> {
     togglToken =
         (await prefs.getString(SharedPreferenceConstants.TOKEN_TOGGL)) ??
             "Insert your Toggl Token";
-    jiraSelectedProject_id = (await prefs.getString(SharedPreferenceConstants.PROJECT_JIRA_ID)) ??
+    jiraSelectedProject_name = (await prefs.getString(SharedPreferenceConstants.PROJECT_JIRA)) ??
         "Select your Project";
-    print("priject ID: $jiraSelectedProject_id");
     togglSelectedWorkspace_name =
         (await prefs.getString(SharedPreferenceConstants.WORKSPACE_TOGGL)) ??
             "Select your workspace";
@@ -86,8 +85,6 @@ class _ModalWithNavigatorState extends State<ModalWithNavigator> {
     String packageName = packageInfo.packageName;
     String version = packageInfo.version;
     String buildNumber = packageInfo.buildNumber;
-
-    print("AppName: $appName / packageName: $packageName / version: $version / buildNumber: $buildNumber");
 
     _version = "$version+$buildNumber";
     setState(() {});
@@ -185,11 +182,11 @@ class _ModalWithNavigatorState extends State<ModalWithNavigator> {
                               SettingsTile(
                                 title: 'Project',
                                 leading: Icon(Icons.work),
-                                subtitle: Tools.isStringValid(jiraSelectedProject_id)
+                                subtitle: !Tools.isStringValid(jiraSelectedProject_name)
                                     ? "Select your jira Project"
-                                    : jiraSelectedProject_id,
+                                    : jiraSelectedProject_name,
                                 onTap: () async {
-                                  jiraSelectedProject_id =
+                                  jiraSelectedProject_name =
                                   await Navigator.of(context).push(
                                     MaterialPageRoute(
                                       builder: (context) =>
@@ -275,7 +272,6 @@ class _ModalWithNavigatorState extends State<ModalWithNavigator> {
                                             }),
                                           ),
                                         );
-                                        print(togglSelectedProject_name);
                                         setStateIn(() {});
                                       },
                                     ),

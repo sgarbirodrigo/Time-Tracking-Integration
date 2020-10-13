@@ -1,6 +1,9 @@
+import 'package:flutter_datetime_picker/flutter_datetime_picker.dart';
 import 'package:timetrackingintegration/tools/constants.dart';
 import 'package:timetrackingintegration/tools/custom_scrollcontrol.dart';
+import 'package:timetrackingintegration/tools/lifecycle.dart';
 import 'package:timetrackingintegration/tools/settings.dart';
+import 'package:timetrackingintegration/tools/sql_db.dart';
 import 'package:timetrackingintegration/tools/tools.dart';
 import 'package:timetrackingintegration/widgets/topbar.dart';
 import 'package:flutter/cupertino.dart';
@@ -51,81 +54,108 @@ final BehaviorSubject<String> selectNotificationSubject =
 
 NotificationAppLaunchDetails notificationAppLaunchDetails;
 
-class ReceivedNotification {
-  final int id;
-  final String title;
-  final String body;
-  final String payload;
-
-  ReceivedNotification({
-    @required this.id,
-    @required this.title,
-    @required this.body,
-    @required this.payload,
-  });
-}
-
 class _MainPageState extends State<MainPage> {
-  Toggl toggl;
-  Jira jira;
-  JiraIssues jiraIssues;
-  Issues selectedIssue;
-  int numberPomodore;
-  Duration timeDebt, timeElapsedToday, dailyMinimum;
-  Color activeColor = Colors.green;
+  Toggl _toggl;
+  Jira _jira;
+  JiraIssues _jiraIssues;
+  Issue _selectedIssue;
+  int _numberPomodore;
+  Duration _timeDebt, _timeElapsedToday, _dailyMinimum;
+  Color _activeColor = Colors.red;
   bool countTime;
   TextEditingController _extraDescriptionController;
-  SharedPreferences prefs;
-  bool isAnimating = false;
-  bool isPendingView = true;
-  bool isTokensOk = true;
-  List<String> recents = List();
-  RefreshController _refreshController =
-      RefreshController(initialRefresh: false);
-  ScrollController _scrollController = ScrollController();
+  SharedPreferences _prefs;
+  bool _isAnimating = false;
+  bool _isPendingView = true;
+  bool _isTokensOk = true;
+  SqlDatabase sqlDatabase;
+
+  List<String> _recents = List();
+  RefreshController _refreshController = RefreshController(initialRefresh: true);
 
   final MethodChannel platform =
       MethodChannel('crossingthestreams.io/resourceResolver');
 
+  _loadDB() async {
+    sqlDatabase = SqlDatabase();
+    await sqlDatabase.createInstance();
+    await _loadTimerData();
+  }
+
+  _loadTimerData() async {
+    TimerData timerData = await sqlDatabase.getTimerData();
+    print("loadData: ${timerData.toJson()}");
+    if (timerData.status == "paused") {
+      Issue jiraIssue = Issue();
+      Fields fields = Fields(summary: timerData.taskName);
+      jiraIssue.key = timerData.taskId;
+      jiraIssue.fields = fields;
+      this._selectedIssue = jiraIssue;
+
+      _isAnimating = true;
+
+      setState(() {});
+    } else if (timerData.status == "playing") {
+      Issue jiraIssue = Issue();
+      Fields fields = Fields(summary: timerData.taskName);
+      jiraIssue.key = timerData.taskId;
+      jiraIssue.fields = fields;
+      this._selectedIssue = jiraIssue;
+
+      _isAnimating = true;
+
+      setState(() {});
+    }
+  }
+
   void initState() {
     super.initState();
-    toggl = Toggl();
     countTime = true;
     _extraDescriptionController = TextEditingController(text: "");
-    _scrollController = ScrollController();
-
     _requestIOSPermissions();
-    _loadData();
+    _loadDB();
+    WidgetsBinding.instance
+        .addObserver(LifecycleEventHandler(resumeCallBack: () async {
+      print("binded");
+      if (sqlDatabase == null) {
+        sqlDatabase = SqlDatabase();
+        await sqlDatabase.createInstance();
+      } else {
+        await _loadTimerData();
+      }
+      setState(() {});
+    }));
   }
 
   _checkTokens() async {
     String email_jira =
-        prefs.getString(SharedPreferenceConstants.EMAIL_JIRA) ?? "";
+        _prefs.getString(SharedPreferenceConstants.EMAIL_JIRA) ?? "";
 
     String token_jira =
-        prefs.getString(SharedPreferenceConstants.TOKEN_JIRA) ?? "";
+        _prefs.getString(SharedPreferenceConstants.TOKEN_JIRA) ?? "";
 
     String token_toggl =
-        prefs.getString(SharedPreferenceConstants.TOKEN_TOGGL) ?? "";
+        _prefs.getString(SharedPreferenceConstants.TOKEN_TOGGL) ?? "";
 
-    if (!Tools.isStringValid(email_jira)) {
-      isTokensOk = false;
+    //todo diferenciar painel se nao estiver OK os tokens
+    /*if (!Tools.isStringValid(email_jira)) {
+      _isTokensOk = false;
     }
 
     if (!Tools.isStringValid(token_jira)) {
-      isTokensOk = false;
+      _isTokensOk = false;
     }
     if (!Tools.isStringValid(token_toggl)) {
-      isTokensOk = false;
-    }
+      _isTokensOk = false;
+    }*/
   }
 
   _loadSharedPreferences() async {
-    numberPomodore =
-        (await prefs.getInt(SharedPreferenceConstants.POMODORO_QUANT)) ?? 3;
-    dailyMinimum = Duration(
+    _numberPomodore =
+        (await _prefs.getInt(SharedPreferenceConstants.POMODORO_QUANT)) ?? 3;
+    _dailyMinimum = Duration(
         milliseconds:
-            (await prefs.getInt(SharedPreferenceConstants.DURATION_MIN) ??
+            (await _prefs.getInt(SharedPreferenceConstants.DURATION_MIN) ??
                 Duration(hours: 3, minutes: 0).inMilliseconds));
   }
 
@@ -148,53 +178,47 @@ class _MainPageState extends State<MainPage> {
   }
 
   _loadData() async {
-    prefs = await SharedPreferences.getInstance();
-    isTokensOk = true;
+    _prefs = await SharedPreferences.getInstance();
+    _isTokensOk = true;
     await _checkTokens();
     await _loadSharedPreferences();
-    await _loadDebtTime();
+    await _loadTogglData();
     await _loadJiraIssues();
     setState(() {});
   }
 
   _loadJiraIssues() async {
-    try {
-      jira = Jira(maxResults: 50);
-      JiraIssues jiraResult = await jira.getIssues();
-      recents = await toggl.getRecents();
-      this.selectedIssue = jiraResult.issues[0];
-      setState(() {
-        this.jiraIssues = jiraResult;
-      });
-    } catch (e) {
-      this.selectedIssue = null;
-      recents = List();
-      jiraIssues = null;
-      isTokensOk = false;
+    _jira = Jira();
+    if (this._selectedIssue == null) {
+      try {
+        JiraIssues jiraResult = await _jira.getIssues();
+        this._selectedIssue = jiraResult.issues[0];
+        setState(() {
+          this._jiraIssues = jiraResult;
+        });
+      } catch (e) {
+        this._selectedIssue = null;
+        _jiraIssues = null;
+        _isTokensOk = false;
+      }
     }
   }
 
-  void _loadDebtTime() async {
+  void _loadTogglData() async {
+    _toggl = Toggl();
     try {
-      Duration minDaily = Duration(
-          milliseconds:
-              (await prefs.getInt(SharedPreferenceConstants.DURATION_MIN)) ??
-                  Duration(hours: 2, minutes: 30).inMilliseconds);
-      DateTime since = DateTime.tryParse(
-          await prefs.getString(SharedPreferenceConstants.DATE_SINCE));
-      timeDebt = await toggl.getAccumulatedDebit(since, minDaily);
-      timeElapsedToday = await toggl.getAccumulatedTime(DateTime.now());
-      //print("timeDebt:$timeDebt");
-      //print("timeElapsedToday:$timeElapsedToday");
-      /*if (timeDebt.isNegative ||
-          timeElapsedToday.inMilliseconds < minDaily.inMilliseconds) {
-        activeColor = Colors.red;
-      } else {
-        activeColor = Colors.green;
-      }*/
-      activeColor = Tools.getBackgroundColor(timeElapsedToday, minDaily);
+      //DateTime since = DateTime.tryParse(
+      //  await _prefs.getString(SharedPreferenceConstants.DATE_SINCE));
+      _timeDebt = await _toggl.getAccumulatedDebit(
+          DateTime.tryParse(
+              await _prefs.getString(SharedPreferenceConstants.DATE_SINCE)),
+          _dailyMinimum);
+      _timeElapsedToday = await _toggl.getAccumulatedTime(DateTime.now());
+      _recents = await _toggl.getRecents();
+      _activeColor = Tools.getBackgroundColor(_timeElapsedToday, _dailyMinimum);
     } catch (e) {
-      isTokensOk = false;
+      _isTokensOk = false;
+      _recents = List();
       print("load toggl error: $e");
     }
   }
@@ -222,7 +246,7 @@ class _MainPageState extends State<MainPage> {
         enableBallisticLoad: false,
         // trigger load more by BallisticScrollActivity
         child: Material(
-          color: activeColor,
+          color: _activeColor,
           child: SafeArea(
             top: true,
             child: SmartRefresher(
@@ -230,8 +254,16 @@ class _MainPageState extends State<MainPage> {
               enablePullUp: false,
               physics: CustomScrollPhysics(),
               header: WaterDropHeader(
-                waterDropColor: Colors.lightBlue,
-                complete: Icon(Icons.cloud_done,color: Colors.white,),
+                waterDropColor: Colors.white,
+                idleIcon: Icon(
+                  Icons.autorenew,
+                  size: 15,
+                  color: _activeColor,
+                ),
+                complete: Icon(
+                  Icons.cloud_done,
+                  color: _activeColor,
+                ),
               ),
               controller: _refreshController,
               onRefresh: _onRefresh,
@@ -243,230 +275,273 @@ class _MainPageState extends State<MainPage> {
                     left: 0,
                     right: 0,
                     child: MyTopBar(
-                      isAnimating: isAnimating,
-                      timeDebt: timeDebt,
-                      timeElapsedToday: timeElapsedToday,
+                      isAnimating: _isAnimating,
+                      timeDebt: _timeDebt,
+                      timeElapsedToday: _timeElapsedToday,
                       onRequestReload: () {
                         _loadData();
                       },
                     ),
                   ),
-                  isTokensOk
-                      ? Positioned(
-                          top: !isAnimating ? 36 : 0,
-                          left: 0,
-                          right: 0,
-                          bottom: isAnimating ? 0 : null,
-                          child: Pomodoro(
-                              dailyMinimum: dailyMinimum,
-                              numberPomodore: numberPomodore,
-                              elapsedToday: timeElapsedToday,
-                              activeColor: activeColor,
-                              selectedIssue: this.selectedIssue,
-                              countTime: countTime,
-                              onStatusChange: (isAnimating) {
-                                print("Status: ${isAnimating}");
-                                this.isAnimating = isAnimating;
-                                setState(() {});
-                              },
-                              onFinish: (elapsedTime, startDate) async {
-                                bool ring = true;
-                                Future.delayed(
-                                    const Duration(milliseconds: 500),
-                                    () async {
-                                  while (ring) {
-                                    await FlutterRingtonePlayer.play(
-                                        android: AndroidSounds.alarm,
-                                        ios: IosSounds.alarm,
-                                        looping: true,
-                                        volume: 1.0,
-                                        asAlarm: true);
-                                    await Future.delayed(
-                                        const Duration(seconds: 2));
-                                  }
-                                });
-                                String task;
-                                if (isPendingView) {
-                                  print(
-                                      "ElapsedTime: ${elapsedTime} \n StartDate: ${startDate}");
-                                  task = this.selectedIssue.key +
-                                      ": " +
-                                      this.selectedIssue.fields.summary;
-                                } else {
-                                  task = _extraDescriptionController.text;
-                                }
-                                var result = await _showDialog(
-                                    context, elapsedTime, task, startDate);
-                                print("dialog result: ${result}");
-                                setState(() {
-                                  ring = false;
-                                });
-                                if (result == "save") {
-                                  if (!isPendingView) {
-                                    await toggl.postTime(
-                                        duration: elapsedTime,
-                                        startDate: startDate,
-                                        countTime: countTime,
-                                        description:
-                                            _extraDescriptionController.text);
-                                  } else {
-                                    await toggl.postTime(
-                                        description:
-                                            "${this.selectedIssue.key}: ${this.selectedIssue.fields.summary}",
-                                        duration: elapsedTime,
-                                        startDate: startDate,
-                                        sprint: this
-                                            .selectedIssue
-                                            .fields
-                                            .parent
-                                            .fields
-                                            .summary);
-                                  }
-                                  _loadData();
-                                }
-                              }),
-                        )
-                      : Positioned(
-                          bottom: 0,
-                          left: 0,
-                          right: 0,
-                          top: 42,
-                          child: Center(
-                              child: Container(
-                                  height: 64,
-                                  width: 256,
-                                  child: RaisedButton(
-                                    onPressed: () {
-                                      AppSettings.showSettingsPanel(context);
-                                    },
-                                    color: Colors.white,
-                                    child: Text(
-                                      "You must insert your Jira and Toggl tokens",
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                          color: Colors.deepOrangeAccent,
-                                          fontSize: 24,
-                                          fontWeight: FontWeight.w300),
+                  Positioned(
+                    top: !_isAnimating ? 36 : 0,
+                    left: 0,
+                    right: 0,
+                    bottom: _isAnimating ? 0 : null,
+                    child: Pomodoro(
+                        dailyMinimum: _dailyMinimum,
+                        numberPomodore: _numberPomodore,
+                        elapsedToday: _timeElapsedToday,
+                        activeColor: _activeColor,
+                        selectedIssue: this._selectedIssue,
+                        countTime: countTime,
+                        onError: (message) {
+                          Scaffold.of(context).showSnackBar(SnackBar(
+                              elevation: 4,
+                              backgroundColor: Colors.white,
+                              action: SnackBarAction(
+                                label: "OK",
+                                onPressed: () {},
+                              ),
+                              behavior: SnackBarBehavior.floating,
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(8.0)),
+                              content: Text(
+                                message,
+                                style: TextStyle(color: Colors.black87),
+                              )));
+                        },
+                        onStatusChange: (isAnimating) {
+                          this._isAnimating = isAnimating;
+                          if (mounted) setState(() {});
+                        },
+                        onPause: () async {
+                          print("paused");
+                          await sqlDatabase.pause();
+
+                          TimerData timerData =
+                              await sqlDatabase.getTimerData();
+                          print("timerData: ${timerData.toJson()}");
+                        },
+                        onPlay: (duration) async {
+                          print("duration $duration");
+                          String parentName = "";
+                          try {
+                            parentName =
+                                _selectedIssue.fields.parent.fields.summary;
+                          } catch (e) {
+                            parentName = null;
+                          }
+
+                          await sqlDatabase.play(duration, _selectedIssue.key,
+                              _selectedIssue.fields.summary, parentName);
+
+                          TimerData timerData =
+                              await sqlDatabase.getTimerData();
+                          print("timerData: ${timerData.toJson()}");
+                        },
+                        onCancel: () async {
+                          print("cancel");
+                          await sqlDatabase.stop();
+                          TimerData timerData =
+                              await sqlDatabase.getTimerData();
+                          print("timerData: ${timerData.toJson()}");
+                          if (mounted) setState(() {});
+                        },
+                        onStop: (elapsedTime, startDate) async {
+                          print("stop");
+                          await sqlDatabase.pause();
+                          TimerData timerData =
+                              await sqlDatabase.getTimerData();
+                          bool ring = true;
+                          Future.delayed(const Duration(milliseconds: 500),
+                              () async {
+                            while (ring) {
+                              await FlutterRingtonePlayer.play(
+                                  android: AndroidSounds.alarm,
+                                  ios: IosSounds.alarm,
+                                  looping: true,
+                                  volume: 1.0,
+                                  asAlarm: true);
+                              await Future.delayed(const Duration(seconds: 2));
+                            }
+                          });
+                          String description = "", sprint = null;
+                          if (timerData.taskId == null) {
+                            description = "${timerData.taskName}";
+                          } else {
+                            description =
+                                "${timerData.taskId}: ${timerData.taskName}";
+                            sprint = timerData.taskParentId;
+                          }
+                          var result = await _showDialog(
+                              context, elapsedTime, description, startDate);
+                          setState(() {
+                            ring = false;
+                          });
+
+                          if (result == "save") {
+                            ScaffoldFeatureController snackbar =
+                            Scaffold.of(context).showSnackBar(SnackBar(
+                                elevation: 4,
+                                backgroundColor: Colors.white,
+                                //action: CircularProgressIndicator(),
+                                behavior: SnackBarBehavior.floating,
+                                shape: RoundedRectangleBorder(
+                                    borderRadius:
+                                    BorderRadius.circular(8.0)),
+                                content: Container(
+                                    height: 32,
+                                    child: Row(
+                                      children: [
+                                        Container(height: 16,width: 16,child:CircularProgressIndicator(valueColor: new AlwaysStoppedAnimation<Color>(Colors.blue),)),
+                                        Container(width: 16,),
+                                        Text(
+                                          "Saving ...",
+                                          style:
+                                          TextStyle(color: Colors.black87),
+                                        )
+                                      ],
+                                    ))));
+                            try {
+                              await timerData.timersQueue
+                                  .forEach((Timer timer) async {
+                                    //print("timer: ${timer.toJson()}");
+                                await _toggl.postTime(
+                                    duration: Duration(
+                                        milliseconds: timer
+                                            .elapsedMilliseconds),
+                                    startDate:
+                                    DateTime.fromMillisecondsSinceEpoch(
+                                        timer.startMillisecondssinceepoch*1000),
+                                    countTime: countTime,
+                                    description: description,
+                                    sprint: sprint);
+                              });
+                              await sqlDatabase.stop();
+                              _isAnimating = false;
+                              await _loadData();
+                            }catch(e){
+                              print("error ao upload: $e");
+                              //todo try again or cancel
+                            }
+
+                            snackbar.close();
+
+                            setState(() {});
+                          }
+                        }),
+                  ),
+                  Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minHeight: 64.0,
+                        maxHeight: heightFinal - data.size.width,
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: <Widget>[
+                          _isAnimating
+                              ? Container()
+                              : Row(
+                                  children: <Widget>[
+                                    Padding(
+                                      padding: const EdgeInsets.only(
+                                          left: 16, top: 0, bottom: 0),
+                                      child: FlatButton(
+                                        child: Text(
+                                          'Pending',
+                                          textAlign: TextAlign.left,
+                                          style: TextStyle(
+                                              shadows: _isPendingView
+                                                  ? <Shadow>[
+                                                      Shadow(
+                                                        offset: Offset(0, 0),
+                                                        blurRadius: 4,
+                                                        color: Color.fromARGB(
+                                                            127, 0, 0, 0),
+                                                      )
+                                                    ]
+                                                  : null,
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.w400,
+                                              color: Colors.white),
+                                        ),
+                                        onPressed: () {
+                                          setState(() {
+                                            _isPendingView = true;
+                                            if (this._jiraIssues != null) {
+                                              this._selectedIssue =
+                                                  this._jiraIssues.issues[0];
+                                            }
+                                            countTime = true;
+                                          });
+                                        },
+                                      ),
                                     ),
-                                  )))),
-                  isTokensOk
-                      ? Positioned(
-                          bottom: 0,
-                          left: 0,
-                          right: 0,
-                          child: ConstrainedBox(
-                            constraints: BoxConstraints(
-                              minHeight: 64.0,
-                              maxHeight: heightFinal - data.size.width,
-                            ),
-                            child: Column(
-                              mainAxisSize: MainAxisSize.min,
-                              children: <Widget>[
-                                isAnimating
-                                    ? Container()
-                                    : Row(
-                                        children: <Widget>[
-                                          Padding(
-                                            padding: const EdgeInsets.only(
-                                                left: 16, top: 0, bottom: 0),
-                                            child: FlatButton(
-                                              child: Text(
-                                                'Pending',
-                                                textAlign: TextAlign.left,
-                                                style: TextStyle(
-                                                    shadows: isPendingView
-                                                        ? <Shadow>[
-                                                            Shadow(
-                                                              offset:
-                                                                  Offset(0, 0),
-                                                              blurRadius: 4,
-                                                              color: Color
-                                                                  .fromARGB(127,
-                                                                      0, 0, 0),
-                                                            )
-                                                          ]
-                                                        : null,
-                                                    fontSize: 18,
-                                                    fontWeight: FontWeight.w400,
-                                                    color: Colors.white),
-                                              ),
-                                              onPressed: () {
-                                                setState(() {
-                                                  isPendingView = true;
-                                                  if (this.jiraIssues != null) {
-                                                    this.selectedIssue = this
-                                                        .jiraIssues
-                                                        .issues[0];
-                                                  }
-                                                  countTime = true;
-                                                });
-                                              },
-                                            ),
-                                          ),
-                                          Expanded(
-                                            child: Container(),
-                                          ),
-                                          Padding(
-                                            padding: const EdgeInsets.only(
-                                                top: 0, bottom: 0, right: 16),
-                                            child: FlatButton(
-                                              child: Text(
-                                                'Extra',
-                                                textAlign: TextAlign.right,
-                                                style: TextStyle(
-                                                    shadows: !isPendingView
-                                                        ? <Shadow>[
-                                                            Shadow(
-                                                              offset:
-                                                                  Offset(0, 0),
-                                                              blurRadius: 4,
-                                                              color: Color
-                                                                  .fromARGB(127,
-                                                                      0, 0, 0),
-                                                            )
-                                                          ]
-                                                        : null,
-                                                    fontSize: 18,
-                                                    fontWeight: FontWeight.w400,
-                                                    color: Colors.white),
-                                              ),
-                                              onPressed: () {
-                                                setState(() {
-                                                  isPendingView = false;
-                                                  this.selectedIssue = Issues(
-                                                      fields: Fields(
-                                                          summary:
-                                                              _extraDescriptionController
-                                                                  .text));
-                                                });
-                                              },
-                                            ),
-                                          )
-                                        ],
+                                    Expanded(
+                                      child: Container(),
+                                    ),
+                                    Padding(
+                                      padding: const EdgeInsets.only(
+                                          top: 0, bottom: 0, right: 16),
+                                      child: FlatButton(
+                                        child: Text(
+                                          'Extra',
+                                          textAlign: TextAlign.right,
+                                          style: TextStyle(
+                                              shadows: !_isPendingView
+                                                  ? <Shadow>[
+                                                      Shadow(
+                                                        offset: Offset(0, 0),
+                                                        blurRadius: 4,
+                                                        color: Color.fromARGB(
+                                                            127, 0, 0, 0),
+                                                      )
+                                                    ]
+                                                  : null,
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.w400,
+                                              color: Colors.white),
+                                        ),
+                                        onPressed: () {
+                                          setState(() {
+                                            _isPendingView = false;
+                                            this._selectedIssue = Issue(
+                                                fields: Fields(
+                                                    summary:
+                                                        _extraDescriptionController
+                                                            .text));
+                                          });
+                                        },
                                       ),
-                                AnimatedContainer(
-                                  height: !isAnimating
-                                      ? heightFinal - data.size.width - 48
-                                      : 0,
-                                  child: Card(
-                                      clipBehavior: Clip.antiAlias,
-                                      margin: EdgeInsets.only(
-                                          left: 8, right: 8, top: 0, bottom: 8),
-                                      elevation: 4,
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(4.0),
-                                      ),
-                                      child: isPendingView
-                                          ? history(context)
-                                          : extras(context)),
-                                  duration: Duration(milliseconds: 300),
+                                    )
+                                  ],
                                 ),
-                              ],
-                            ),
+                          AnimatedContainer(
+                            height: !_isAnimating
+                                ? heightFinal - data.size.width - 48
+                                : 0,
+                            child: Card(
+                                clipBehavior: Clip.antiAlias,
+                                margin: EdgeInsets.only(
+                                    left: 8, right: 8, top: 0, bottom: 8),
+                                elevation: 4,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(4.0),
+                                ),
+                                child: _isPendingView
+                                    ? history(context)
+                                    : extras(context)),
+                            duration: Duration(milliseconds: 300),
                           ),
-                        )
-                      : Container(),
+                        ],
+                      ),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -476,13 +551,13 @@ class _MainPageState extends State<MainPage> {
 
   void _onRefresh() async {
     await _loadData();
-    // if failed,use refreshFailed()
+    // if failed, use refreshFailed()
     _refreshController.refreshCompleted();
   }
 
   void _onLoading() async {
     // monitor network fetch
-    await Future.delayed(Duration(milliseconds: 1000));
+    // await Future.delayed(Duration(milliseconds: 1000));
     // if failed,use loadFailed(),if no data return,use LoadNodata()
     if (mounted) setState(() {});
     _refreshController.loadComplete();
@@ -491,7 +566,7 @@ class _MainPageState extends State<MainPage> {
   Widget extras(BuildContext context) {
     return Column(children: <Widget>[
       Container(
-        color: activeColor.withOpacity(0.1),
+        color: _activeColor.withOpacity(0.1),
         padding: EdgeInsets.only(left: 0, bottom: 16, right: 16, top: 16),
         child: Row(children: <Widget>[
           Container(
@@ -511,7 +586,7 @@ class _MainPageState extends State<MainPage> {
                             )),
                         onTap: () {
                           _extraDescriptionController.clear();
-                          this.selectedIssue = null;
+                          this._selectedIssue = null;
                           setState(() {});
                         },
                       )
@@ -522,14 +597,13 @@ class _MainPageState extends State<MainPage> {
                     EdgeInsets.only(left: 0, bottom: 0, top: 0, right: 0),
               ),
               onChanged: (value) async {
-                Issues jiraIssue = Issues();
+                Issue jiraIssue = Issue();
                 Fields fields =
                     Fields(summary: _extraDescriptionController.text);
-
                 jiraIssue.fields = fields;
-                this.selectedIssue = jiraIssue;
+                this._selectedIssue = jiraIssue;
                 if (_extraDescriptionController.text.isEmpty) {
-                  this.selectedIssue = null;
+                  this._selectedIssue = null;
                 }
                 setState(() {});
               },
@@ -539,7 +613,7 @@ class _MainPageState extends State<MainPage> {
             tooltip: "Discount from goal",
             icon: Icon(
               countTime ? Icons.timer : Icons.timer_off,
-              color: countTime ? activeColor : Colors.grey.withOpacity(0.6),
+              color: countTime ? _activeColor : Colors.grey.withOpacity(0.6),
             ),
             onPressed: () {
               setState(() {
@@ -552,24 +626,24 @@ class _MainPageState extends State<MainPage> {
       Container(color: Colors.grey.withOpacity(0.5), height: 0.5),
       Container(
           color: Colors.grey.withOpacity(0.1),
-          height: 24,
+          height: 18,
           child: Center(child: Text("Recent"))),
-      recents.isNotEmpty
+      _recents.isNotEmpty
           ? Expanded(
               child: ListView.builder(
                   scrollDirection: Axis.vertical,
                   shrinkWrap: true,
-                  itemCount: recents.length,
+                  itemCount: _recents.length,
                   itemBuilder: (BuildContext context, int index) {
                     return GestureDetector(
                         onTap: () {
-                          _extraDescriptionController.text = recents[index];
-                          Issues jiraIssue = Issues();
+                          _extraDescriptionController.text = _recents[index];
+                          Issue jiraIssue = Issue();
                           Fields fields =
                               Fields(summary: _extraDescriptionController.text);
 
                           jiraIssue.fields = fields;
-                          this.selectedIssue = jiraIssue;
+                          this._selectedIssue = jiraIssue;
                           setState(() {});
                         },
                         child: Container(
@@ -582,7 +656,7 @@ class _MainPageState extends State<MainPage> {
                                       padding: EdgeInsets.symmetric(
                                           horizontal: 16, vertical: 8),
                                       child: Text(
-                                        recents[index],
+                                        _recents[index],
                                         style: TextStyle(
                                             color: Colors.black87,
                                             fontSize: 16),
@@ -598,18 +672,18 @@ class _MainPageState extends State<MainPage> {
 
   Widget history(BuildContext context) {
     return Container(
-      child: this.jiraIssues != null
+      child: this._jiraIssues != null
           ? ListView.builder(
               scrollDirection: Axis.vertical,
               shrinkWrap: true,
-              itemCount: this.jiraIssues.issues.length,
+              itemCount: this._jiraIssues.issues.length,
               itemBuilder: (BuildContext context, int index) {
                 return item(
                     context,
-                    this.jiraIssues.issues[index],
-                    this.jiraIssues.issues[index].key ==
-                        (this.selectedIssue != null
-                            ? this.selectedIssue.key
+                    this._jiraIssues.issues[index],
+                    this._jiraIssues.issues[index].key ==
+                        (this._selectedIssue != null
+                            ? this._selectedIssue.key
                             : ""));
               })
           : Container(),
@@ -703,13 +777,13 @@ class _MainPageState extends State<MainPage> {
         });
   }
 
-  Widget item(BuildContext context, Issues issue, bool active) {
+  Widget item(BuildContext context, Issue issue, bool active) {
     return Column(children: <Widget>[
       GestureDetector(
           behavior: HitTestBehavior.opaque,
           onTap: () {
             setState(() {
-              this.selectedIssue = issue;
+              this._selectedIssue = issue;
             });
           },
           child: Slidable(
@@ -717,8 +791,8 @@ class _MainPageState extends State<MainPage> {
             actionExtentRatio: 0.25,
             child: Container(
                 color: active
-                    ? activeColor.withOpacity(0.1)
-                    : activeColor.withOpacity(0),
+                    ? _activeColor.withOpacity(0.1)
+                    : _activeColor.withOpacity(0),
                 padding: EdgeInsets.only(
                   left: 0,
                   right: 16,
@@ -728,7 +802,7 @@ class _MainPageState extends State<MainPage> {
                       ? Container(
                           width: 4,
                           height: 64,
-                          color: activeColor,
+                          color: _activeColor,
                         )
                       : Container(
                           width: 4,
@@ -790,7 +864,7 @@ class _MainPageState extends State<MainPage> {
                 color: Colors.blue,
                 icon: Icons.done_outline,
                 onTap: () async {
-                  int responseStatus = await jira.updateIssue(issue.key);
+                  int responseStatus = await _jira.updateIssue(issue.key);
                   print("Response code: $responseStatus");
                   if (responseStatus >= 200 && responseStatus < 300) {
                     _loadData();

@@ -2,7 +2,7 @@ name: timetrackingintegration
 
 description: Integration between Jira and Toggl with pomodoro
 publish_to: none
-version: 1.1.0+22
+version: 1.4.1+6
 
 dependencies:
   flutter:

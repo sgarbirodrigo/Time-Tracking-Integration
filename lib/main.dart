@@ -6,6 +6,7 @@ import 'package:timetrackingintegration/tools/settings.dart';
 import 'package:timetrackingintegration/tools/sql_db.dart';
 import 'package:timetrackingintegration/tools/tools.dart';
 import 'package:timetrackingintegration/widgets/topbar.dart';
+import 'package:flutter_spinkit/flutter_spinkit.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -70,6 +71,7 @@ class _MainPageState extends State<MainPage> {
   SqlDatabase sqlDatabase;
   List<String> _recents = List();
   RefreshController _refreshController = RefreshController();
+  final Key linkKey = GlobalKey();
 
   final MethodChannel platform =
       MethodChannel('crossingthestreams.io/resourceResolver');
@@ -265,350 +267,385 @@ class _MainPageState extends State<MainPage> {
     var data = MediaQuery.of(context);
     double heightFinal = data.size.height - 54 - kToolbarHeight;
     return RefreshConfiguration(
-        headerTriggerDistance: 10.0,
+        /*headerTriggerDistance: 6.0,
         // header trigger refresh trigger distance
         springDescription:
-            SpringDescription(stiffness: 170, damping: 16, mass: 1.9),
+            SpringDescription(stiffness: 170, damping: 16, mass: 1.9),*/
         // custom spring back animate,the props meaning see the flutter api
-        maxOverScrollExtent: 24,
+        //maxOverScrollExtent: 24,
         //The maximum dragging range of the head. Set this property if a rush out of the view area occurs
-        maxUnderScrollExtent: 0,
-        // Maximum dragging range at the bottom
+        /* maxUnderScrollExtent: 0,*/
+
+        headerBuilder: () => WaterDropMaterialHeader(
+              backgroundColor: _activeColor,
+            ),
+        /*// Maximum dragging range at the bottom
         enableScrollWhenRefreshCompleted: true,
         //This property is incompatible with PageView and TabBarView. If you need TabBarView to slide left and right, you need to set it to true.
         enableLoadingWhenFailed: true,
         //In the case of load failure, users can still trigger more loads by gesture pull-up.
         hideFooterWhenNotFull: true,
         // Disable pull-up to load more functionality when Viewport is less than one screen
-        enableBallisticLoad: false,
-        // trigger load more by BallisticScrollActivity
+        enableBallisticLoad: true,
+        // trigger load more by BallisticScrollActivity*/
         child: Material(
           color: _activeColor,
           child: SafeArea(
             top: true,
-            child: SmartRefresher(
-              enablePullDown: true,
-              enablePullUp: false,
-              physics: CustomScrollPhysics(),
-              header: WaterDropHeader(
-                waterDropColor: Colors.white,
-                idleIcon: Icon(
-                  Icons.autorenew,
-                  size: 15,
-                  color: _activeColor,
-                ),
-                complete: Icon(
-                  Icons.cloud_done,
-                  color: _activeColor,
+            child: Stack(
+              children: <Widget>[
+                /*Container(
+              height: 52.0,
+              child: AppBar(
+                Colors.transparent,
+                elevation: dismissAppbar ? 1.0 : 0.0,
+                title: SimpleLinkBar(
+                  key: linkKey,
                 ),
               ),
-              controller: _refreshController,
-              onRefresh: _onRefresh,
-              //onLoading: _onLoading,
-              child: Stack(
-                children: <Widget>[
-                  Positioned(
-                    top: 8,
-                    left: 0,
-                    right: 0,
-                    child: MyTopBar(
-                      isAnimating: _isAnimating,
-                      timeDebt: _timeDebt,
-                      timeElapsedToday: _timeElapsedToday,
-                      onRequestReload: () async {
-                        //_refreshController.requestLoading();
-                        await _refreshController.requestRefresh();
-                      },
-                    ),
-                  ),
-                  Positioned(
-                    top: !_isAnimating ? 64 : 0,
-                    left: 0,
-                    right: 0,
-                    bottom: _isAnimating ? 0 : null,
-                    child:Container(child: Pomodoro(
-                        dailyMinimum: _dailyMinimum,
-                        numberPomodore: _numberPomodore,
-                        elapsedToday: _timeElapsedToday,
-                        activeColor: _activeColor,
-                        selectedIssue: this._selectedIssue,
-                        countTime: countTime,
-                        onError: (message) {
-                          Scaffold.of(context).showSnackBar(SnackBar(
-                              elevation: 4,
-                              backgroundColor: Colors.white,
-                              action: SnackBarAction(
-                                label: "OK",
-                                onPressed: () {},
-                              ),
-                              behavior: SnackBarBehavior.floating,
-                              shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(8.0)),
-                              content: Text(
-                                message,
-                                style: TextStyle(color: Colors.black87),
-                              )));
-                        },
-                        onTimeTick: (Duration duration) {
-                          Duration elapsedTotal = Duration(
-                              milliseconds: _timeElapsedToday.inMilliseconds +
-                                  duration.inMilliseconds);
-                          _activeColor = Tools.getBackgroundColor(
-                              elapsedTotal, _dailyMinimum);
-                        },
-                        onStatusChange: (isAnimating) {
-                          this._isAnimating = isAnimating;
-                          if (mounted) setState(() {});
-                        },
-                        onPause: () async {
-                          await sqlDatabase.pause();
-                        },
-                        onBreak:()async{
-                          await sqlDatabase.hitMax();
-                        },
-                        onPlay: (duration) async {
-                          print("duration $duration");
-                          String parentName = "";
-                          try {
-                            parentName =
-                                _selectedIssue.fields.parent.fields.summary;
-                          } catch (e) {
-                            parentName = null;
-                          }
-
-                          await sqlDatabase.play(duration, _selectedIssue.key,
-                              _selectedIssue.fields.summary, parentName);
-
-                          TimerData timerData =
-                          await sqlDatabase.getTimerData();
-                          print("timerData: ${timerData.toJson()}");
-                        },
-                        onCancel: () async {
-                          print("cancel");
-                          await sqlDatabase.stop();
-                          TimerData timerData =
-                          await sqlDatabase.getTimerData();
-                          print("timerData: ${timerData.toJson()}");
-                          if (mounted) setState(() {});
-                        },
-                        onStop: (elapsedTimes, startDate) async {
-                          print("stop");
-                          /* await sqlDatabase.pause();*/
-                          TimerData timerData =
-                          await sqlDatabase.getTimerData();
-                          bool ring = true;
-                          Future.delayed(const Duration(milliseconds: 500),
-                                  () async {
-                                while (ring) {
-                                  await FlutterRingtonePlayer.play(
-                                      android: AndroidSounds.alarm,
-                                      ios: IosSounds.alarm,
-                                      looping: true,
-                                      volume: 1.0,
-                                      asAlarm: true);
-                                  await Future.delayed(const Duration(seconds: 2));
+            ),*/
+                SmartRefresher(
+                  enablePullDown: true,
+                  enablePullUp: false,
+                  physics: CustomScrollPhysics(),
+                  /*header: WaterDropHeader(
+                waterDropColor: Colors.white,
+                refresh: Container(),
+                idleIcon:Container(),
+                complete: Container(),
+              ),*/
+                  controller: _refreshController,
+                  onRefresh: _onRefresh,
+                  //onLoading: _onLoading,
+                  child: Stack(
+                    children: <Widget>[
+                      Positioned(
+                        top: 8,
+                        left: 0,
+                        right: 0,
+                        child: MyTopBar(
+                          isAnimating: _isAnimating,
+                          timeDebt: _timeDebt,
+                          timeElapsedToday: _timeElapsedToday,
+                          onRequestReload: () async {
+                            //_refreshController.requestLoading();
+                            await _refreshController.requestRefresh();
+                          },
+                        ),
+                      ),
+                      Positioned(
+                        top: !_isAnimating ? 64 : 0,
+                        left: 0,
+                        right: 0,
+                        bottom: _isAnimating ? 0 : null,
+                        child: Container(
+                          child: Pomodoro(
+                              dailyMinimum: _dailyMinimum,
+                              numberPomodore: _numberPomodore,
+                              elapsedToday: _timeElapsedToday,
+                              activeColor: _activeColor,
+                              selectedIssue: this._selectedIssue,
+                              countTime: countTime,
+                              onError: (message) {
+                                Scaffold.of(context).showSnackBar(SnackBar(
+                                    elevation: 4,
+                                    backgroundColor: Colors.white,
+                                    action: SnackBarAction(
+                                      label: "OK",
+                                      onPressed: () {},
+                                    ),
+                                    behavior: SnackBarBehavior.floating,
+                                    shape: RoundedRectangleBorder(
+                                        borderRadius:
+                                            BorderRadius.circular(8.0)),
+                                    content: Text(
+                                      message,
+                                      style: TextStyle(color: Colors.black87),
+                                    )));
+                              },
+                              onTimeTick: (Duration duration) {
+                                Duration elapsedTotal = Duration(
+                                    milliseconds:
+                                        _timeElapsedToday.inMilliseconds +
+                                            duration.inMilliseconds);
+                                _activeColor = Tools.getBackgroundColor(
+                                    elapsedTotal, _dailyMinimum);
+                              },
+                              onStatusChange: (isAnimating) {
+                                this._isAnimating = isAnimating;
+                                if (mounted) setState(() {});
+                              },
+                              onPause: () async {
+                                await sqlDatabase.pause();
+                              },
+                              onBreak: () async {
+                                await sqlDatabase.hitMax();
+                              },
+                              onPlay: (duration) async {
+                                print("duration $duration");
+                                String parentName = "";
+                                try {
+                                  parentName = _selectedIssue
+                                      .fields.parent.fields.summary;
+                                } catch (e) {
+                                  parentName = null;
                                 }
-                              });
-                          String description = "", sprint = null;
-                          if (timerData.taskId == null) {
-                            description = "${timerData.taskName}";
-                          } else {
-                            description =
-                            "${timerData.taskId}: ${timerData.taskName}";
-                            sprint = timerData.taskParentId;
-                          }
-                          Duration totalElapsed = Duration(milliseconds: 0);
-                          await timerData.timersQueue
-                              .forEach((Timer timer) async {
-                            totalElapsed = Duration(
-                                milliseconds: totalElapsed.inMilliseconds +
-                                    timer.elapsedMilliseconds);
-                          });
-                          var result = await _showDialog(
-                              context, totalElapsed, description, startDate);
-                          setState(() {
-                            ring = false;
-                          });
 
-                          if (result == "save") {
-                            ScaffoldFeatureController snackbar =
-                            Scaffold.of(context).showSnackBar(SnackBar(
-                                elevation: 4,
-                                backgroundColor: Colors.white,
-                                //action: CircularProgressIndicator(),
-                                behavior: SnackBarBehavior.floating,
-                                shape: RoundedRectangleBorder(
-                                    borderRadius:
-                                    BorderRadius.circular(8.0)),
-                                content: Container(
-                                    height: 32,
-                                    child: Row(
-                                      children: [
-                                        Container(
-                                            height: 16,
-                                            width: 16,
-                                            child:
-                                            CircularProgressIndicator(
-                                              valueColor:
-                                              new AlwaysStoppedAnimation<
-                                                  Color>(Colors.blue),
-                                            )),
-                                        Container(
-                                          width: 16,
+                                await sqlDatabase.play(
+                                    duration,
+                                    _selectedIssue.key,
+                                    _selectedIssue.fields.summary,
+                                    parentName);
+
+                                TimerData timerData =
+                                    await sqlDatabase.getTimerData();
+                                print("timerData: ${timerData.toJson()}");
+                              },
+                              onCancel: () async {
+                                print("cancel");
+                                await sqlDatabase.stop();
+                                TimerData timerData =
+                                    await sqlDatabase.getTimerData();
+                                print("timerData: ${timerData.toJson()}");
+                                if (mounted) setState(() {});
+                              },
+                              onStop: (elapsedTimes, startDate) async {
+                                print("stop");
+                                /* await sqlDatabase.pause();*/
+                                TimerData timerData =
+                                    await sqlDatabase.getTimerData();
+                                bool ring = true;
+                                Future.delayed(
+                                    const Duration(milliseconds: 500),
+                                    () async {
+                                  while (ring) {
+                                    await FlutterRingtonePlayer.play(
+                                        android: AndroidSounds.alarm,
+                                        ios: IosSounds.alarm,
+                                        looping: true,
+                                        volume: 1.0,
+                                        asAlarm: true);
+                                    await Future.delayed(
+                                        const Duration(seconds: 2));
+                                  }
+                                });
+                                String description = "", sprint = null;
+                                if (timerData.taskId == null) {
+                                  description = "${timerData.taskName}";
+                                } else {
+                                  description =
+                                      "${timerData.taskId}: ${timerData.taskName}";
+                                  sprint = timerData.taskParentId;
+                                }
+                                Duration totalElapsed =
+                                    Duration(milliseconds: 0);
+                                await timerData.timersQueue
+                                    .forEach((Timer timer) async {
+                                  totalElapsed = Duration(
+                                      milliseconds:
+                                          totalElapsed.inMilliseconds +
+                                              timer.elapsedMilliseconds);
+                                });
+                                var result = await _showDialog(context,
+                                    totalElapsed, description, startDate);
+                                setState(() {
+                                  ring = false;
+                                });
+
+                                if (result == "save") {
+                                  ScaffoldFeatureController snackbar = Scaffold
+                                          .of(context)
+                                      .showSnackBar(SnackBar(
+                                          elevation: 4,
+                                          backgroundColor: Colors.white,
+                                          //action: CircularProgressIndicator(),
+                                          behavior: SnackBarBehavior.floating,
+                                          shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(8.0)),
+                                          content: Container(
+                                              height: 32,
+                                              child: Row(
+                                                children: [
+                                                  Container(
+                                                      height: 16,
+                                                      width: 16,
+                                                      child:
+                                                          CircularProgressIndicator(
+                                                        valueColor:
+                                                            new AlwaysStoppedAnimation<
+                                                                    Color>(
+                                                                Colors.blue),
+                                                      )),
+                                                  Container(
+                                                    width: 16,
+                                                  ),
+                                                  Text(
+                                                    "Saving ...",
+                                                    style: TextStyle(
+                                                        color: Colors.black87),
+                                                  )
+                                                ],
+                                              ))));
+                                  try {
+                                    await timerData.timersQueue
+                                        .forEach((Timer timer) async {
+                                      print("timer: ${timer.toJson()}");
+                                      await _toggl.postTime(
+                                          duration: Duration(
+                                              milliseconds:
+                                                  timer.elapsedMilliseconds),
+                                          startDate: DateTime
+                                              .fromMillisecondsSinceEpoch(timer
+                                                      .startMillisecondssinceepoch *
+                                                  1000),
+                                          countTime: countTime,
+                                          description: description,
+                                          sprint: sprint);
+                                    });
+                                    await sqlDatabase.stop();
+                                    _isAnimating = false;
+                                    _refreshController.requestRefresh();
+                                  } catch (e) {
+                                    print("error ao upload: $e");
+                                    //todo try again or cancel
+                                  }
+                                  snackbar.close();
+                                } else {
+                                  await sqlDatabase.stop();
+                                  _isAnimating = false;
+                                  _refreshController.requestRefresh();
+                                }
+                                setState(() {});
+                              }),
+                        ),
+                      ),
+                      Positioned(
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            minHeight: 64.0,
+                            maxHeight: heightFinal - data.size.width,
+                          ),
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: <Widget>[
+                              _isAnimating
+                                  ? Container()
+                                  : Row(
+                                      children: <Widget>[
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                              left: 16, top: 0, bottom: 0),
+                                          child: FlatButton(
+                                            child: Text(
+                                              'Pending',
+                                              textAlign: TextAlign.left,
+                                              style: TextStyle(
+                                                  shadows: _isPendingView
+                                                      ? <Shadow>[
+                                                          Shadow(
+                                                            offset:
+                                                                Offset(0, 0),
+                                                            blurRadius: 4,
+                                                            color:
+                                                                Color.fromARGB(
+                                                                    127,
+                                                                    0,
+                                                                    0,
+                                                                    0),
+                                                          )
+                                                        ]
+                                                      : null,
+                                                  fontSize: 18,
+                                                  fontWeight: FontWeight.w400,
+                                                  color: Colors.white),
+                                            ),
+                                            onPressed: () {
+                                              setState(() {
+                                                _isPendingView = true;
+                                                if (this._jiraIssues != null) {
+                                                  this._selectedIssue = this
+                                                      ._jiraIssues
+                                                      .issues[0];
+                                                }
+                                                countTime = true;
+                                              });
+                                            },
+                                          ),
                                         ),
-                                        Text(
-                                          "Saving ...",
-                                          style: TextStyle(
-                                              color: Colors.black87),
+                                        Expanded(
+                                          child: Container(),
+                                        ),
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                              top: 0, bottom: 0, right: 16),
+                                          child: FlatButton(
+                                            child: Text(
+                                              'Extra',
+                                              textAlign: TextAlign.right,
+                                              style: TextStyle(
+                                                  shadows: !_isPendingView
+                                                      ? <Shadow>[
+                                                          Shadow(
+                                                            offset:
+                                                                Offset(0, 0),
+                                                            blurRadius: 4,
+                                                            color:
+                                                                Color.fromARGB(
+                                                                    127,
+                                                                    0,
+                                                                    0,
+                                                                    0),
+                                                          )
+                                                        ]
+                                                      : null,
+                                                  fontSize: 18,
+                                                  fontWeight: FontWeight.w400,
+                                                  color: Colors.white),
+                                            ),
+                                            onPressed: () {
+                                              setState(() {
+                                                _isPendingView = false;
+                                                this._selectedIssue = Issue(
+                                                    fields: Fields(
+                                                        summary:
+                                                            _extraDescriptionController
+                                                                .text));
+                                              });
+                                            },
+                                          ),
                                         )
                                       ],
-                                    ))));
-                            try {
-                              await timerData.timersQueue
-                                  .forEach((Timer timer) async {
-                                print("timer: ${timer.toJson()}");
-                                await _toggl.postTime(
-                                    duration: Duration(
-                                        milliseconds:
-                                        timer.elapsedMilliseconds),
-                                    startDate:
-                                    DateTime.fromMillisecondsSinceEpoch(
-                                        timer.startMillisecondssinceepoch *
-                                            1000),
-                                    countTime: countTime,
-                                    description: description,
-                                    sprint: sprint);
-                              });
-                              await sqlDatabase.stop();
-                              _isAnimating = false;
-                              _refreshController.requestRefresh();
-                            } catch (e) {
-                              print("error ao upload: $e");
-                              //todo try again or cancel
-                            }
-                            snackbar.close();
-
-
-                          }else{
-                            await sqlDatabase.stop();
-                            _isAnimating = false;
-                            _refreshController.requestRefresh();
-                          }
-                          setState(() {});
-                        }),) ,
-                  ),
-                  Positioned(
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        minHeight: 64.0,
-                        maxHeight: heightFinal - data.size.width,
-                      ),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: <Widget>[
-                          _isAnimating
-                              ? Container()
-                              : Row(
-                                  children: <Widget>[
-                                    Padding(
-                                      padding: const EdgeInsets.only(
-                                          left: 16, top: 0, bottom: 0),
-                                      child: FlatButton(
-                                        child: Text(
-                                          'Pending',
-                                          textAlign: TextAlign.left,
-                                          style: TextStyle(
-                                              shadows: _isPendingView
-                                                  ? <Shadow>[
-                                                      Shadow(
-                                                        offset: Offset(0, 0),
-                                                        blurRadius: 4,
-                                                        color: Color.fromARGB(
-                                                            127, 0, 0, 0),
-                                                      )
-                                                    ]
-                                                  : null,
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.w400,
-                                              color: Colors.white),
-                                        ),
-                                        onPressed: () {
-                                          setState(() {
-                                            _isPendingView = true;
-                                            if (this._jiraIssues != null) {
-                                              this._selectedIssue =
-                                                  this._jiraIssues.issues[0];
-                                            }
-                                            countTime = true;
-                                          });
-                                        },
-                                      ),
                                     ),
-                                    Expanded(
-                                      child: Container(),
+                              AnimatedContainer(
+                                height: !_isAnimating
+                                    ? heightFinal - data.size.width - 48
+                                    : 0,
+                                child: Card(
+                                    clipBehavior: Clip.antiAlias,
+                                    margin: EdgeInsets.only(
+                                        left: 8, right: 8, top: 0, bottom: 8),
+                                    elevation: 4,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(4.0),
                                     ),
-                                    Padding(
-                                      padding: const EdgeInsets.only(
-                                          top: 0, bottom: 0, right: 16),
-                                      child: FlatButton(
-                                        child: Text(
-                                          'Extra',
-                                          textAlign: TextAlign.right,
-                                          style: TextStyle(
-                                              shadows: !_isPendingView
-                                                  ? <Shadow>[
-                                                      Shadow(
-                                                        offset: Offset(0, 0),
-                                                        blurRadius: 4,
-                                                        color: Color.fromARGB(
-                                                            127, 0, 0, 0),
-                                                      )
-                                                    ]
-                                                  : null,
-                                              fontSize: 18,
-                                              fontWeight: FontWeight.w400,
-                                              color: Colors.white),
-                                        ),
-                                        onPressed: () {
-                                          setState(() {
-                                            _isPendingView = false;
-                                            this._selectedIssue = Issue(
-                                                fields: Fields(
-                                                    summary:
-                                                        _extraDescriptionController
-                                                            .text));
-                                          });
-                                        },
-                                      ),
-                                    )
-                                  ],
-                                ),
-                          AnimatedContainer(
-                            height: !_isAnimating
-                                ? heightFinal - data.size.width - 48
-                                : 0,
-                            child: Card(
-                                clipBehavior: Clip.antiAlias,
-                                margin: EdgeInsets.only(
-                                    left: 8, right: 8, top: 0, bottom: 8),
-                                elevation: 4,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(4.0),
-                                ),
-                                child: _isPendingView
-                                    ? history(context)
-                                    : extras(context)),
-                            duration: Duration(milliseconds: 300),
+                                    child: _isPendingView
+                                        ? history(context)
+                                        : extras(context)),
+                                duration: Duration(milliseconds: 300),
+                              ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
-                    ),
-                  ),
-                ],
-              ),
+                    ],
+                  )
+                  /*: Container(child: SpinKitPouringHourglass(color: Colors.white,size: 128,),)*/,
+                )
+              ],
             ),
           ),
         ));

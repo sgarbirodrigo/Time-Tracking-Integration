@@ -1,4 +1,5 @@
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:pull_to_refresh/pull_to_refresh.dart';
 import 'package:timetrackingintegration/jira/jira.dart';
 import 'package:timetrackingintegration/toggl/toggl.dart';
 import 'package:timetrackingintegration/tools/constants.dart';
@@ -17,7 +18,9 @@ class MyTopBar extends StatefulWidget {
       {this.onRequestReload,
       this.timeElapsedToday,
       this.timeDebt,
-      this.isAnimating});
+      this.isAnimating,
+      Key key})
+      : super(key: key);
 
   @override
   _MyTopBarState createState() => _MyTopBarState();
@@ -39,10 +42,13 @@ class Correlation {
 class _MyTopBarState extends State<MyTopBar> {
   @override
   void initState() {
+
     super.initState();
     _loadProjects();
   }
 
+  RefreshStatus _status = RefreshStatus.idle;
+  AnimationController _animationController;
   Map<String, int> _selectedTogglProjectKey = new Map();
   Toggl _toggl;
   Jira _jira;
@@ -101,199 +107,226 @@ class _MyTopBarState extends State<MyTopBar> {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: <Widget>[
           !widget.isAnimating
-              ?GestureDetector(
-            onTap: () {
-              showDialog(
-                  context: context,
-                  builder: (BuildContext context) {
-                    return StatefulBuilder(builder: (context, setState) {
-                      return Dialog(
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(4.0)),
-                        //this right here
-                        child: Container(
-                          //height: 200,
-                          child: Padding(
-                            padding: EdgeInsets.all(8.0),
-                            child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                Text(
-                                  'Jira - Toggl Project Correlation',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                      fontSize: 16,
-                                      color: Colors.black87,
-                                      fontWeight: FontWeight.bold),
-                                ),
-                                Container(
-                                  margin: EdgeInsets.symmetric(vertical: 8),
-                                  height: 1,
-                                  color: Colors.black12,
-                                ),
-                                Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  mainAxisSize: MainAxisSize.min,
-                                  crossAxisAlignment: CrossAxisAlignment.center,
-                                  children: correlationsList
-                                      .map((Correlation correlation) {
-                                    return GestureDetector(
-                                      onTap: () async {
-                                        await prefs.setString(
-                                            SharedPreferenceConstants
-                                                .PROJECT_JIRA,
-                                            correlation.jira_project_name);
-                                        await prefs.setString(
-                                            SharedPreferenceConstants
-                                                .PROJECT_JIRA_AVATAR,
-                                            correlation.avatar_url);
-
-                                        int togglId = int.tryParse(correlation.toggl_project_id);
-                                        await prefs.setInt(
-                                            SharedPreferenceConstants
-                                                .PROJECT_TOGGL
-                                                .replaceAll("name", "id"),
-                                                togglId);
-                                        jiraSelectedProject_id =
-                                            correlation.jira_project_name;
-
-                                        setState(() {});
-                                      },
-                                      child: Container(
-                                        color: jiraSelectedProject_id ==
-                                                correlation.jira_project_name
-                                            ? Colors.lightBlue.withOpacity(0.1)
-                                            : Colors.transparent,
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.max,
-                                          children: [
-                                            Container(
-                                              width: 36.0,
-                                              height: 36.0,
-                                              margin: EdgeInsets.only(
-                                                  left: 0, right: 8, top: 0),
-                                              child: JiraAvatarLoader(
-                                                url: correlation.avatar_url,
-                                                headers: _jira_header,
-                                              ),
-                                            ),
-                                            Container(
-                                              width: 110,
-                                              child: Text(
-                                                correlation.jira_project_name,
-                                                textAlign: TextAlign.left,
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                              ),
-                                            ),
-                                            Expanded(
-                                              child: Container(),
-                                            ),
-                                            Container(
-                                              child: DropdownButton(
-                                                hint: Text("Toggl Project"),
-                                                value: _selectedTogglProjectKey[
-                                                    correlation
-                                                        .jira_project_id],
-                                                onChanged: (newValue) {
-                                                  setState(() {
-                                                    _selectedTogglProjectKey
-                                                        .update(
-                                                            correlation
-                                                                .jira_project_id,
-                                                            (value) =>
-                                                                newValue);
-                                                    int pos = correlationsList
-                                                        .indexOf(correlation);
-
-                                                    correlation
-                                                            .toggl_project_id =
-                                                        newValue.toString();
-                                                    correlation
-                                                            .toggl_project_name =
-                                                        toggl_projects[
-                                                            newValue];
-
-                                                    correlationsList[pos] =
-                                                        correlation;
-                                                    prefs.setInt(
-                                                        "${SharedPreferenceConstants.JIRATOGGLECORRELATION}_${correlation.jira_project_id}",
-                                                        newValue);
-                                                  });
-                                                },
-                                                items: toggl_projects.entries
-                                                    .map((entry) {
-                                                  return DropdownMenuItem(
-                                                    child: Text(entry.value),
-                                                    value: entry.key,
-                                                  );
-                                                }).toList(),
-                                              ),
-                                            )
-                                          ],
-                                        ),
+              ? GestureDetector(
+                  onTap: () {
+                    showDialog(
+                        context: context,
+                        builder: (BuildContext context) {
+                          return StatefulBuilder(builder: (context, setState) {
+                            return Dialog(
+                              shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(4.0)),
+                              //this right here
+                              child: Container(
+                                //height: 200,
+                                child: Padding(
+                                  padding: EdgeInsets.all(8.0),
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    mainAxisSize: MainAxisSize.min,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.center,
+                                    children: [
+                                      Text(
+                                        'Jira - Toggl Project Correlation',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                            fontSize: 16,
+                                            color: Colors.black87,
+                                            fontWeight: FontWeight.bold),
                                       ),
-                                    );
-                                  }).toList(),
-                                ),
-                                Container(
-                                  margin: EdgeInsets.symmetric(vertical: 8),
-                                  height: 1,
-                                  color: Colors.black12,
-                                ),
-                                SizedBox(
-                                  //width: 128.0,
-                                  child: RaisedButton(
-                                    onPressed: () {
-                                      widget.onRequestReload();
-                                      Navigator.pop(context);
-                                      _loadProjects();
-                                      setState((){});
-                                    },
-                                    child: Text(
-                                      "OK",
-                                      style: TextStyle(color: Colors.white),
-                                    ),
-                                    color: const Color(0xFF1BC0C5),
+                                      Container(
+                                        margin:
+                                            EdgeInsets.symmetric(vertical: 8),
+                                        height: 1,
+                                        color: Colors.black12,
+                                      ),
+                                      Column(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        mainAxisSize: MainAxisSize.min,
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.center,
+                                        children: correlationsList
+                                            .map((Correlation correlation) {
+                                          return GestureDetector(
+                                            onTap: () async {
+                                              await prefs.setString(
+                                                  SharedPreferenceConstants
+                                                      .PROJECT_JIRA,
+                                                  correlation
+                                                      .jira_project_name);
+                                              await prefs.setString(
+                                                  SharedPreferenceConstants
+                                                      .PROJECT_JIRA_AVATAR,
+                                                  correlation.avatar_url);
+
+                                              int togglId = int.tryParse(
+                                                  correlation.toggl_project_id);
+                                              await prefs.setInt(
+                                                  SharedPreferenceConstants
+                                                      .PROJECT_TOGGL
+                                                      .replaceAll("name", "id"),
+                                                  togglId);
+                                              jiraSelectedProject_id =
+                                                  correlation.jira_project_name;
+
+                                              setState(() {});
+                                            },
+                                            child: Container(
+                                              color: jiraSelectedProject_id ==
+                                                      correlation
+                                                          .jira_project_name
+                                                  ? Colors.lightBlue
+                                                      .withOpacity(0.1)
+                                                  : Colors.transparent,
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.max,
+                                                children: [
+                                                  Container(
+                                                    width: 36.0,
+                                                    height: 36.0,
+                                                    margin: EdgeInsets.only(
+                                                        left: 0,
+                                                        right: 8,
+                                                        top: 0),
+                                                    child: JiraAvatarLoader(
+                                                      url: correlation
+                                                          .avatar_url,
+                                                      headers: _jira_header,
+                                                    ),
+                                                  ),
+                                                  Container(
+                                                    width: 110,
+                                                    child: Text(
+                                                      correlation
+                                                          .jira_project_name,
+                                                      textAlign: TextAlign.left,
+                                                      maxLines: 1,
+                                                      overflow:
+                                                          TextOverflow.ellipsis,
+                                                    ),
+                                                  ),
+                                                  Expanded(
+                                                    child: Container(),
+                                                  ),
+                                                  Container(
+                                                    child: DropdownButton(
+                                                      hint:
+                                                          Text("Toggl Project"),
+                                                      value: _selectedTogglProjectKey[
+                                                          correlation
+                                                              .jira_project_id],
+                                                      onChanged: (newValue) {
+                                                        setState(() {
+                                                          _selectedTogglProjectKey
+                                                              .update(
+                                                                  correlation
+                                                                      .jira_project_id,
+                                                                  (value) =>
+                                                                      newValue);
+                                                          int pos =
+                                                              correlationsList
+                                                                  .indexOf(
+                                                                      correlation);
+
+                                                          correlation
+                                                                  .toggl_project_id =
+                                                              newValue
+                                                                  .toString();
+                                                          correlation
+                                                                  .toggl_project_name =
+                                                              toggl_projects[
+                                                                  newValue];
+
+                                                          correlationsList[
+                                                                  pos] =
+                                                              correlation;
+                                                          prefs.setInt(
+                                                              "${SharedPreferenceConstants.JIRATOGGLECORRELATION}_${correlation.jira_project_id}",
+                                                              newValue);
+                                                        });
+                                                      },
+                                                      items: toggl_projects
+                                                          .entries
+                                                          .map((entry) {
+                                                        return DropdownMenuItem(
+                                                          child:
+                                                              Text(entry.value),
+                                                          value: entry.key,
+                                                        );
+                                                      }).toList(),
+                                                    ),
+                                                  )
+                                                ],
+                                              ),
+                                            ),
+                                          );
+                                        }).toList(),
+                                      ),
+                                      Container(
+                                        margin:
+                                            EdgeInsets.symmetric(vertical: 8),
+                                        height: 1,
+                                        color: Colors.black12,
+                                      ),
+                                      SizedBox(
+                                        //width: 128.0,
+                                        child: RaisedButton(
+                                          onPressed: () {
+                                            widget.onRequestReload();
+                                            Navigator.pop(context);
+                                            _loadProjects();
+                                            setState(() {});
+                                          },
+                                          child: Text(
+                                            "OK",
+                                            style:
+                                                TextStyle(color: Colors.white),
+                                          ),
+                                          color: const Color(0xFF1BC0C5),
+                                        ),
+                                      )
+                                    ],
                                   ),
-                                )
-                              ],
-                            ),
-                          ),
-                        ),
-                      );
-                    });
-                  });
-            },
-            child:Container(
-              width: 36.0,
-              height: 36.0,
-              margin: EdgeInsets.only(left: 16, top: 0),
-              child:  ClipOval(
-                child: JiraAvatarLoader(
-                url: avatarUrl,
-                headers: _jira_header,
-              ),),
-                decoration: BoxDecoration(
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.2),
-                      blurRadius: 0.8, // soften the shadow
-                      spreadRadius: 0.8, //extend the shadow
-                      offset: Offset(
-                        0, // Move to right 10  horizontally
-                        0, // Move to bottom 5 Vertically
+                                ),
+                              ),
+                            );
+                          });
+                        });
+                  },
+                  child: Container(
+                    width: 36.0,
+                    height: 36.0,
+                    margin: EdgeInsets.only(left: 16, top: 0),
+                    child: ClipOval(
+                      child: JiraAvatarLoader(
+                        url: avatarUrl,
+                        headers: _jira_header,
                       ),
-                    )
-                  ],
-                  color: Colors.white,
-                  shape: BoxShape.circle,
-                  border: Border.all(color: Colors.white, width: 1),
+                    ),
+                    decoration: BoxDecoration(
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.2),
+                          blurRadius: 0.8, // soften the shadow
+                          spreadRadius: 0.8, //extend the shadow
+                          offset: Offset(
+                            0, // Move to right 10  horizontally
+                            0, // Move to bottom 5 Vertically
+                          ),
+                        )
+                      ],
+                      color: Colors.white,
+                      shape: BoxShape.circle,
+                      border: Border.all(color: Colors.white, width: 1),
+                    ),
+                  ),
+                )
+              : Container(
+                  width: 52,
+                  height: 36,
                 ),
-            ),
-          ):Container(width: 52,height: 36,),
           Expanded(
             child: Container(),
           ),

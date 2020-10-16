@@ -361,12 +361,10 @@ class _MainPageState extends State<MainPage> {
                           if (mounted) setState(() {});
                         },
                         onPause: () async {
-                          print("paused");
                           await sqlDatabase.pause();
-
-                          TimerData timerData =
-                          await sqlDatabase.getTimerData();
-                          print("timerData: ${timerData.toJson()}");
+                        },
+                        onBreak:()async{
+                          await sqlDatabase.hitMax();
                         },
                         onPlay: (duration) async {
                           print("duration $duration");
@@ -483,16 +481,20 @@ class _MainPageState extends State<MainPage> {
                               });
                               await sqlDatabase.stop();
                               _isAnimating = false;
-                              await _loadData();
+                              _refreshController.requestRefresh();
                             } catch (e) {
                               print("error ao upload: $e");
                               //todo try again or cancel
                             }
-
                             snackbar.close();
 
-                            setState(() {});
+
+                          }else{
+                            await sqlDatabase.stop();
+                            _isAnimating = false;
+                            _refreshController.requestRefresh();
                           }
+                          setState(() {});
                         }),) ,
                   ),
                   Positioned(

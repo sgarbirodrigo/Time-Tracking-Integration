@@ -15,6 +15,7 @@ class Pomodoro extends StatefulWidget {
       onError,
       onPlay,
       onPause,
+  onBreak,
       onCancel,
       onTimeTick;
   Color activeColor;
@@ -26,6 +27,7 @@ class Pomodoro extends StatefulWidget {
   Pomodoro(
       {this.selectedIssue,
       this.onStop,
+        this.onBreak,
       this.onCancel,
       this.activeColor,
       this.onStatusChange,
@@ -169,6 +171,7 @@ class _PomodoroState extends State<Pomodoro> with TickerProviderStateMixin {
         animationController.value = value;
         animationController.reverse();
       } else {
+        widget.onBreak();
         animationController.value = 0;
         finishAndSave();
       }

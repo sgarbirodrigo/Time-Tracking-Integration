@@ -177,6 +177,34 @@ class SqlDatabase {
           );
     }
   }
+  Future<void> hitMax() async {
+    List<Map<String, dynamic>> maps =
+    await this.getTable(SQL_TABLE_CONSTANTS.TIMER_DATA);
+
+    TimerData timerData = TimerData.fromJson(maps[0]);
+
+    timerData.status = "paused";
+    Duration elapsed = Duration(
+        milliseconds:
+            timerData.runningTimerStartDurationMilli);
+    await _addTimeToQueue(
+        DateTime.fromMicrosecondsSinceEpoch(
+            timerData.runningTimerStartMillisinceepoch),
+        elapsed);
+
+    if (maps.length > 0) {
+      await this.db.update(
+        SQL_TABLE_CONSTANTS.TIMER_DATA,
+        timerData.toJson(),
+      );
+    } else {
+      await this.db.insert(
+        SQL_TABLE_CONSTANTS.TIMER_DATA,
+        timerData.toJson(),
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
+    }
+  }
 
   Future<void> stop() async {
     List<Map<String, dynamic>> maps =

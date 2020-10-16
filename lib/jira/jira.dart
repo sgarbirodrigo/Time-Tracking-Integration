@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:typed_data';
 
+import 'package:flutter/cupertino.dart';
 import 'package:timetrackingintegration/tools/constants.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert' show Codec, base64, json, utf8;
@@ -14,7 +16,7 @@ class Jira {
 
   Codec<String, String> stringToBase64 = utf8.fuse(base64);
 
-  Future<Map<String, String>> get _headerAuth async {
+  Future<Map<String, String>> get headerAuth async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String email = prefs.getString(SharedPreferenceConstants.EMAIL_JIRA);
     String token = prefs.getString(SharedPreferenceConstants.TOKEN_JIRA);
@@ -22,38 +24,55 @@ class Jira {
     Codec<String, String> stringToBase64 = utf8.fuse(base64);
     return {
       "Accept": "application/json",
-      "Authorization": "Basic " +
-          stringToBase64.encode(email + ":" + token),
+      "Authorization": "Basic " + stringToBase64.encode(email + ":" + token),
+      "Content-Type":"application/json"
     };
   }
 
-  Future<String> get _projectId async{
+  Future<String> get _projectId async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String project = prefs.getString(SharedPreferenceConstants.PROJECT_JIRA);
+    print("project ${project}");
     return project;
   }
 
-  Future<String> get _domainId async{
+  Future<String> get _domainId async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String domain = prefs.getString(SharedPreferenceConstants.DOMAIN_JIRA);
     return domain;
   }
 
+  Future<dynamic> getAvatar(String url_) async {
+    String url = Uri.encodeFull(url_);
+    http.Response response = await (http.get(
+      url,
+      headers: await headerAuth,
+    ));
+
+    //todo make better way to check if its svg or not
+    String map = utf8.decode(response.bodyBytes);
+
+    //print("map: ${map}");
+    return Image.memory(response.bodyBytes);
+  }
+
   Future<JiraIssues> getIssues() async {
+    //print("start get issues");
     try {
       String url = Uri.encodeFull(
           "https://${await _domainId}.atlassian.net/rest/api/2/search?&maxResults=" +
               this.maxResults.toString() +
-              "&fields=summary,status,timespent,customfield_10016,parent&jql=project=${await _projectId} AND issueType=Story AND statusCategory = ${JiraStatusConstants.IN_PROGRESS}");
+              "&fields=summary,flag,status,timespent,customfield_10016,customfield_10023,parent&jql=project=${await _projectId} AND issueType=Story AND statusCategory = ${JiraStatusConstants.IN_PROGRESS}");
       http.Response response = await (http.get(
         url,
-        headers: await _headerAuth,
+        headers: await headerAuth,
       ));
 
       JiraIssues data =
-      JiraIssues.fromJson(json.decode(utf8.decode(response.bodyBytes)));
+          JiraIssues.fromJson(json.decode(utf8.decode(response.bodyBytes)));
+      //print("data issues: ${data.issues.toString()}");
       return data;
-    }catch(e){
+    } catch (e) {
       print("error on get issues: $e");
       return null;
     }
@@ -65,7 +84,7 @@ class Jira {
       "update": {
         "comment": [
           {
-            "add": {"body": "Progress updated via app."}
+            "add": {"body": "Progress updated via app"}
           }
         ]
       },
@@ -75,32 +94,57 @@ class Jira {
 
     var response = await http.post(
       url,
-      headers:  await _headerAuth,
+      headers: await headerAuth,
       body: body,
     );
-
+    print(response.reasonPhrase);
     return response.statusCode;
   }
 
   Future<Map<String, String>> getProjects() async {
     http.Response response = await (http.get(
-      Uri.encodeFull("https://${await _domainId}.atlassian.net/rest/api/2/project"),
-      headers: await _headerAuth,
+      Uri.encodeFull(
+          "https://${await _domainId}.atlassian.net/rest/api/2/project"),
+      headers: await headerAuth,
     ));
-    Map<String, String> workspaces = Map<String, String>();
+    Map<String, String> projects = Map<String, String>();
 
     try {
       (Tools.BodyBytesToJson(response.bodyBytes) as List).forEach((item) {
-        //print("project: $item");
+        print("project: $item");
         if (item["name"] != null) {
-          workspaces[item["key"]] = item["name"];
+          projects[item["key"]] = item["name"];
         }
       });
     } catch (e) {
       print("error: ${e}");
     }
 
-    return workspaces;
+    return projects;
+  }
+
+  Future<Map<String, dynamic>> getProjectsListAvatar() async {
+    http.Response response = await (http.get(
+      Uri.encodeFull(
+          "https://${await _domainId}.atlassian.net/rest/api/2/project"),
+      headers: await headerAuth,
+    ));
+    Map<String, dynamic> projects = Map<String, dynamic>();
+
+    try {
+      (Tools.BodyBytesToJson(response.bodyBytes) as List).forEach((item) {
+        //print("project: $item");
+        if (item["name"] != null) {
+          projects[item["key"]] = {};
+          projects[item["key"]]["name"] = item["name"];
+          projects[item["key"]]["avatar"] = item["avatarUrls"]["32x32"];
+        }
+      });
+    } catch (e) {
+      print("error: ${e}");
+    }
+
+    return projects;
   }
 }
 
@@ -143,6 +187,7 @@ class JiraIssues {
       {this.expand, this.startAt, this.maxResults, this.total, this.issues});
 
   JiraIssues.fromJson(Map<String, dynamic> json) {
+    //print("json: $json");
     expand = json['expand'];
     startAt = json['startAt'];
     maxResults = json['maxResults'];
@@ -204,6 +249,7 @@ class Fields {
   int timespent;
   Parent parent;
   double customfield_10016;
+  List<dynamic> customfield_10023;
 
   Fields({
     this.summary,
@@ -216,6 +262,7 @@ class Fields {
     summary = json['summary'];
     timespent = json["timespent"];
     customfield_10016 = json["customfield_10016"];
+    customfield_10023 = json["customfield_10023"];
     parent = json['parent'] != null ? Parent.fromJson(json['parent']) : null;
     status = json['status'] != null ? Status.fromJson(json['status']) : null;
   }
@@ -227,6 +274,7 @@ class Fields {
       data['parent'] = this.parent.toJson();
     }
     data["timespent"] = this.timespent;
+    data["customfield_10023"] = this.customfield_10023;
     data["customfield_10016"] = this.customfield_10016;
     if (this.status != null) {
       data['status'] = this.status.toJson();

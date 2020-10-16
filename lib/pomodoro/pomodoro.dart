@@ -10,7 +10,13 @@ var PI = 3.14;
 
 class Pomodoro extends StatefulWidget {
   Issue selectedIssue;
-  Function onStop, onStatusChange, onError, onPlay, onPause, onCancel;
+  Function onStop,
+      onStatusChange,
+      onError,
+      onPlay,
+      onPause,
+      onCancel,
+      onTimeTick;
   Color activeColor;
   bool countTime, isAnimating = false;
   Duration elapsedToday;
@@ -30,7 +36,8 @@ class Pomodoro extends StatefulWidget {
       this.onError,
       this.onPause,
       this.onPlay,
-      this.isAnimating}) {
+      this.isAnimating,
+      this.onTimeTick}) {
     if (this.selectedIssue != null) {
       if (this.selectedIssue.fields != null) {
         if (this.selectedIssue.fields.summary.isEmpty) {
@@ -50,23 +57,26 @@ class _PomodoroState extends State<Pomodoro> with TickerProviderStateMixin {
   DateTime startDate;
   SqlDatabase sqlDatabase;
   TimerData timerData;
-  Duration totalDuration = Duration(minutes: 0),elapsedDuration = Duration(minutes: 0);
+  Duration totalDuration = Duration(minutes: 0),
+      elapsedDuration = Duration(minutes: 0);
 
   String get timerString {
     try {
-      Duration duration =
-          animationController.duration * (animationController.value==0?1:animationController.value);
+      Duration duration = animationController.duration *
+          (animationController.value == 0 ? 1 : animationController.value);
+      widget.onTimeTick(duration);
       return '${duration.inMinutes.toString().padLeft(2, '0')}:${(duration.inSeconds % 60).toString().padLeft(2, '0')}';
     } catch (e) {
       print("error: ${e}");
       return '00:00';
     }
   }
+
   String get timerFutureString {
     //todo
     try {
-      Duration duration =
-          animationController.duration * (animationController.value==0?1:animationController.value);
+      Duration duration = animationController.duration *
+          (animationController.value == 0 ? 1 : animationController.value);
 
       return '${duration.inMinutes.toString().padLeft(2, '0')}:${(duration.inSeconds % 60).toString().padLeft(2, '0')}';
     } catch (e) {
@@ -82,9 +92,10 @@ class _PomodoroState extends State<Pomodoro> with TickerProviderStateMixin {
     await sqlDatabase.createInstance();
     await _loadTimerData();
   }
+
   _loadTimerData() async {
     timerData = await sqlDatabase.getTimerData();
-    print("Pomodore: ${timerData.toJson()}");
+    //print("Pomodore: ${timerData.toJson()}");
     if (timerData.status == "paused") {
       Issue jiraIssue = Issue();
       Fields fields = Fields(summary: timerData.taskName);
@@ -92,7 +103,7 @@ class _PomodoroState extends State<Pomodoro> with TickerProviderStateMixin {
       jiraIssue.fields = fields;
       widget.selectedIssue = jiraIssue;
       Duration expectedDuration =
-      Duration(milliseconds: timerData.timerExpectedDurationMilli);
+          Duration(milliseconds: timerData.timerExpectedDurationMilli);
       DateTime startedDate = DateTime.fromMillisecondsSinceEpoch(
           timerData.runningTimerStartMillisinceepoch);
       Duration elapsedDuration = Duration(milliseconds: 0);
@@ -100,12 +111,12 @@ class _PomodoroState extends State<Pomodoro> with TickerProviderStateMixin {
       timerData.timersQueue.forEach((Timer timer) {
         elapsedDuration = Duration(
             milliseconds:
-            elapsedDuration.inMilliseconds + timer.elapsedMilliseconds);
+                elapsedDuration.inMilliseconds + timer.elapsedMilliseconds);
       });
 
       Duration restingTime = Duration(
           milliseconds:
-          expectedDuration.inMilliseconds - elapsedDuration.inMilliseconds);
+              expectedDuration.inMilliseconds - elapsedDuration.inMilliseconds);
 
       print("total: $expectedDuration - elapsed: $elapsedDuration");
 
@@ -117,74 +128,78 @@ class _PomodoroState extends State<Pomodoro> with TickerProviderStateMixin {
           (this.elapsedDuration.inMilliseconds /
               this.totalDuration.inMilliseconds);
       setState(() {});
-    }else if (timerData.status == "playing") {
-        Issue jiraIssue = Issue();
-        Fields fields = Fields(summary: timerData.taskName);
-        jiraIssue.key = timerData.taskId;
-        jiraIssue.fields = fields;
-        widget.selectedIssue = jiraIssue;
-        Duration expectedDuration =
-        Duration(milliseconds: timerData.timerExpectedDurationMilli);
-        DateTime startedDate = DateTime.fromMillisecondsSinceEpoch(
-            timerData.runningTimerStartMillisinceepoch);
-        Duration elapsedDuration = Duration(milliseconds: 0);
+    } else if (timerData.status == "playing") {
+      Issue jiraIssue = Issue();
+      Fields fields = Fields(summary: timerData.taskName);
+      jiraIssue.key = timerData.taskId;
+      jiraIssue.fields = fields;
+      widget.selectedIssue = jiraIssue;
+      Duration expectedDuration =
+          Duration(milliseconds: timerData.timerExpectedDurationMilli);
+      DateTime startedDate = DateTime.fromMillisecondsSinceEpoch(
+          timerData.runningTimerStartMillisinceepoch);
+      Duration elapsedDuration = Duration(milliseconds: 0);
 
-        if(timerData.timersQueue!=null) {
-          timerData.timersQueue.forEach((Timer timer) {
-            elapsedDuration = Duration(
-                milliseconds:
-                elapsedDuration.inMilliseconds + timer.elapsedMilliseconds);
-          });
-        }
-        Duration restingTime = Duration(
-            milliseconds:
-            expectedDuration.inMilliseconds - elapsedDuration.inMilliseconds);
-
-        print("total: $expectedDuration - elapsed: $elapsedDuration");
-
-        this.totalDuration = expectedDuration;
-        this.elapsedDuration = elapsedDuration;
-
-        Duration runningElapsed = Duration(milliseconds: DateTime.now().millisecondsSinceEpoch - timerData.runningTimerStartMillisinceepoch);
-
-        animationController.duration = this.totalDuration;
-        double value = 1 -
-            ((this.elapsedDuration.inMilliseconds + runningElapsed.inMilliseconds) /
-                this.totalDuration.inMilliseconds);
-        if(value>0){
-          animationController.value = value;
-          animationController.reverse();
-        }else{
-          animationController.value =0;
-          finishAndSave();
-        }
-
-        setState(() {});
+      if (timerData.timersQueue != null) {
+        timerData.timersQueue.forEach((Timer timer) {
+          elapsedDuration = Duration(
+              milliseconds:
+                  elapsedDuration.inMilliseconds + timer.elapsedMilliseconds);
+        });
       }
+      Duration restingTime = Duration(
+          milliseconds:
+              expectedDuration.inMilliseconds - elapsedDuration.inMilliseconds);
+
+      print("total: $expectedDuration - elapsed: $elapsedDuration");
+
+      this.totalDuration = expectedDuration;
+      this.elapsedDuration = elapsedDuration;
+
+      Duration runningElapsed = Duration(
+          milliseconds: DateTime.now().millisecondsSinceEpoch -
+              timerData.runningTimerStartMillisinceepoch);
+
+      animationController.duration = this.totalDuration;
+      double value = 1 -
+          ((this.elapsedDuration.inMilliseconds +
+                  runningElapsed.inMilliseconds) /
+              this.totalDuration.inMilliseconds);
+      if (value > 0) {
+        animationController.value = value;
+        animationController.reverse();
+      } else {
+        animationController.value = 0;
+        finishAndSave();
+      }
+
+      setState(() {});
+    }
   }
+
   @override
   void initState() {
     super.initState();
     _loadDB();
     animationController =
-    AnimationController(vsync: this, duration: this.totalDuration)
-      ..addStatusListener((status) {
-        if(timerData!=null){
-          if(timerData.status=="paused"){
-            widget.onStatusChange(true);
-          }else if(timerData.status=="playing"){
-            widget.onStatusChange(true);
-          }else{
-            widget.onStatusChange(animationController.isAnimating);
-          }
-        }
-         if (status == AnimationStatus.dismissed &&
+        AnimationController(vsync: this, duration: this.totalDuration)
+          ..addStatusListener((status) {
+            if (timerData != null) {
+              if (timerData.status == "paused") {
+                widget.onStatusChange(true);
+              } else if (timerData.status == "playing") {
+                widget.onStatusChange(true);
+              } else {
+                widget.onStatusChange(animationController.isAnimating);
+              }
+            }
+            if (status == AnimationStatus.dismissed &&
                 animationController.value == 0 &&
                 !hasUserCancelled) {
+              widget.onPause();
               finishAndSave();
             }
-      });
-
+          });
   }
 
   void finishAndSave() {
@@ -361,7 +376,7 @@ class _PomodoroState extends State<Pomodoro> with TickerProviderStateMixin {
                                                           CupertinoTimerPickerMode
                                                               .hms,
                                                       initialTimerDuration:
-                                                      this.totalDuration,
+                                                          this.totalDuration,
                                                       onTimerDurationChanged:
                                                           (Duration newTimer) {
                                                         setNewTimer(newTimer);
@@ -450,17 +465,20 @@ class _PomodoroState extends State<Pomodoro> with TickerProviderStateMixin {
                             Container(
                               height: 16,
                             ),
-                            Text(
-                              widget.selectedIssue != null
-                                  ? widget.selectedIssue.fields.summary
-                                  : "Select a task",
-                              textAlign: TextAlign.center,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                  fontWeight: FontWeight.w400,
-                                  fontSize: 18,
-                                  color: Colors.black.withOpacity(0.5)),
+                            Container(
+                              width: validWidth*0.8,
+                              child: Text(
+                                widget.selectedIssue != null
+                                    ? widget.selectedIssue.fields.summary
+                                    : "Select a task",
+                                textAlign: TextAlign.center,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                    fontWeight: FontWeight.w400,
+                                    fontSize: 18,
+                                    color: Colors.black.withOpacity(0.5)),
+                              ),
                             ), /*Container(height: 36,)*/
                           ],
                         ),

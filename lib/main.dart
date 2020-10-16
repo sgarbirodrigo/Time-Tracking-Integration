@@ -67,11 +67,9 @@ class _MainPageState extends State<MainPage> {
   SharedPreferences _prefs;
   bool _isAnimating = false;
   bool _isPendingView = true;
-  bool _isTokensOk = true;
   SqlDatabase sqlDatabase;
-
   List<String> _recents = List();
-  RefreshController _refreshController = RefreshController(initialRefresh: true);
+  RefreshController _refreshController = RefreshController();
 
   final MethodChannel platform =
       MethodChannel('crossingthestreams.io/resourceResolver');
@@ -80,6 +78,7 @@ class _MainPageState extends State<MainPage> {
     sqlDatabase = SqlDatabase();
     await sqlDatabase.createInstance();
     await _loadTimerData();
+    await _loadData();
   }
 
   _loadTimerData() async {
@@ -93,19 +92,15 @@ class _MainPageState extends State<MainPage> {
       this._selectedIssue = jiraIssue;
 
       _isAnimating = true;
-
-      setState(() {});
     } else if (timerData.status == "playing") {
       Issue jiraIssue = Issue();
       Fields fields = Fields(summary: timerData.taskName);
       jiraIssue.key = timerData.taskId;
       jiraIssue.fields = fields;
       this._selectedIssue = jiraIssue;
-
       _isAnimating = true;
-
-      setState(() {});
     }
+    setState(() {});
   }
 
   void initState() {
@@ -123,11 +118,13 @@ class _MainPageState extends State<MainPage> {
       } else {
         await _loadTimerData();
       }
+      _refreshController.requestRefresh();
       setState(() {});
     }));
   }
 
   _checkTokens() async {
+    bool _isTokensOk = true;
     String email_jira =
         _prefs.getString(SharedPreferenceConstants.EMAIL_JIRA) ?? "";
 
@@ -138,7 +135,7 @@ class _MainPageState extends State<MainPage> {
         _prefs.getString(SharedPreferenceConstants.TOKEN_TOGGL) ?? "";
 
     //todo diferenciar painel se nao estiver OK os tokens
-    /*if (!Tools.isStringValid(email_jira)) {
+    if (!Tools.isStringValid(email_jira)) {
       _isTokensOk = false;
     }
 
@@ -147,7 +144,54 @@ class _MainPageState extends State<MainPage> {
     }
     if (!Tools.isStringValid(token_toggl)) {
       _isTokensOk = false;
-    }*/
+    }
+
+    if (!_isTokensOk) {
+      print("before");
+      await showDialog(
+          barrierDismissible: false,
+          context: context,
+          builder: (BuildContext context) {
+            return Dialog(
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(4.0)), //this right here
+              child: Container(
+                //height: 200,
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.center,
+                    children: [
+                      Text(
+                        'For the correct integration of this app you must verify your Jira and Toggl tokens.',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 16, color: Colors.black87),
+                      ),
+                      SizedBox(
+                        //width: 128.0,
+                        child: RaisedButton(
+                          onPressed: () async {
+                            Navigator.pop(context);
+                            await AppSettings.showSettingsPanel(context);
+                            await _loadData();
+                          },
+                          child: Text(
+                            "Verify",
+                            style: TextStyle(color: Colors.white),
+                          ),
+                          color: const Color(0xFF1BC0C5),
+                        ),
+                      )
+                    ],
+                  ),
+                ),
+              ),
+            );
+          });
+      print("after");
+    }
   }
 
   _loadSharedPreferences() async {
@@ -178,37 +222,31 @@ class _MainPageState extends State<MainPage> {
   }
 
   _loadData() async {
+    print("load data");
     _prefs = await SharedPreferences.getInstance();
-    _isTokensOk = true;
     await _checkTokens();
     await _loadSharedPreferences();
     await _loadTogglData();
     await _loadJiraIssues();
-    setState(() {});
+    //print("end load data");
+    if (mounted) setState(() {});
   }
 
   _loadJiraIssues() async {
     _jira = Jira();
-    if (this._selectedIssue == null) {
-      try {
-        JiraIssues jiraResult = await _jira.getIssues();
-        this._selectedIssue = jiraResult.issues[0];
-        setState(() {
-          this._jiraIssues = jiraResult;
-        });
-      } catch (e) {
-        this._selectedIssue = null;
-        _jiraIssues = null;
-        _isTokensOk = false;
-      }
+
+    try {
+      this._jiraIssues = await _jira.getIssues();
+      this._selectedIssue = this._jiraIssues.issues[0];
+    } catch (e) {
+      this._selectedIssue = null;
+      _jiraIssues = null;
     }
   }
 
   void _loadTogglData() async {
     _toggl = Toggl();
     try {
-      //DateTime since = DateTime.tryParse(
-      //  await _prefs.getString(SharedPreferenceConstants.DATE_SINCE));
       _timeDebt = await _toggl.getAccumulatedDebit(
           DateTime.tryParse(
               await _prefs.getString(SharedPreferenceConstants.DATE_SINCE)),
@@ -217,7 +255,6 @@ class _MainPageState extends State<MainPage> {
       _recents = await _toggl.getRecents();
       _activeColor = Tools.getBackgroundColor(_timeElapsedToday, _dailyMinimum);
     } catch (e) {
-      _isTokensOk = false;
       _recents = List();
       print("load toggl error: $e");
     }
@@ -267,7 +304,7 @@ class _MainPageState extends State<MainPage> {
               ),
               controller: _refreshController,
               onRefresh: _onRefresh,
-              onLoading: _onLoading,
+              //onLoading: _onLoading,
               child: Stack(
                 children: <Widget>[
                   Positioned(
@@ -278,17 +315,18 @@ class _MainPageState extends State<MainPage> {
                       isAnimating: _isAnimating,
                       timeDebt: _timeDebt,
                       timeElapsedToday: _timeElapsedToday,
-                      onRequestReload: () {
-                        _loadData();
+                      onRequestReload: () async {
+                        //_refreshController.requestLoading();
+                        await _refreshController.requestRefresh();
                       },
                     ),
                   ),
                   Positioned(
-                    top: !_isAnimating ? 36 : 0,
+                    top: !_isAnimating ? 64 : 0,
                     left: 0,
                     right: 0,
                     bottom: _isAnimating ? 0 : null,
-                    child: Pomodoro(
+                    child:Container(child: Pomodoro(
                         dailyMinimum: _dailyMinimum,
                         numberPomodore: _numberPomodore,
                         elapsedToday: _timeElapsedToday,
@@ -311,6 +349,13 @@ class _MainPageState extends State<MainPage> {
                                 style: TextStyle(color: Colors.black87),
                               )));
                         },
+                        onTimeTick: (Duration duration) {
+                          Duration elapsedTotal = Duration(
+                              milliseconds: _timeElapsedToday.inMilliseconds +
+                                  duration.inMilliseconds);
+                          _activeColor = Tools.getBackgroundColor(
+                              elapsedTotal, _dailyMinimum);
+                        },
                         onStatusChange: (isAnimating) {
                           this._isAnimating = isAnimating;
                           if (mounted) setState(() {});
@@ -320,7 +365,7 @@ class _MainPageState extends State<MainPage> {
                           await sqlDatabase.pause();
 
                           TimerData timerData =
-                              await sqlDatabase.getTimerData();
+                          await sqlDatabase.getTimerData();
                           print("timerData: ${timerData.toJson()}");
                         },
                         onPlay: (duration) async {
@@ -337,45 +382,52 @@ class _MainPageState extends State<MainPage> {
                               _selectedIssue.fields.summary, parentName);
 
                           TimerData timerData =
-                              await sqlDatabase.getTimerData();
+                          await sqlDatabase.getTimerData();
                           print("timerData: ${timerData.toJson()}");
                         },
                         onCancel: () async {
                           print("cancel");
                           await sqlDatabase.stop();
                           TimerData timerData =
-                              await sqlDatabase.getTimerData();
+                          await sqlDatabase.getTimerData();
                           print("timerData: ${timerData.toJson()}");
                           if (mounted) setState(() {});
                         },
-                        onStop: (elapsedTime, startDate) async {
+                        onStop: (elapsedTimes, startDate) async {
                           print("stop");
-                          await sqlDatabase.pause();
+                          /* await sqlDatabase.pause();*/
                           TimerData timerData =
-                              await sqlDatabase.getTimerData();
+                          await sqlDatabase.getTimerData();
                           bool ring = true;
                           Future.delayed(const Duration(milliseconds: 500),
-                              () async {
-                            while (ring) {
-                              await FlutterRingtonePlayer.play(
-                                  android: AndroidSounds.alarm,
-                                  ios: IosSounds.alarm,
-                                  looping: true,
-                                  volume: 1.0,
-                                  asAlarm: true);
-                              await Future.delayed(const Duration(seconds: 2));
-                            }
-                          });
+                                  () async {
+                                while (ring) {
+                                  await FlutterRingtonePlayer.play(
+                                      android: AndroidSounds.alarm,
+                                      ios: IosSounds.alarm,
+                                      looping: true,
+                                      volume: 1.0,
+                                      asAlarm: true);
+                                  await Future.delayed(const Duration(seconds: 2));
+                                }
+                              });
                           String description = "", sprint = null;
                           if (timerData.taskId == null) {
                             description = "${timerData.taskName}";
                           } else {
                             description =
-                                "${timerData.taskId}: ${timerData.taskName}";
+                            "${timerData.taskId}: ${timerData.taskName}";
                             sprint = timerData.taskParentId;
                           }
+                          Duration totalElapsed = Duration(milliseconds: 0);
+                          await timerData.timersQueue
+                              .forEach((Timer timer) async {
+                            totalElapsed = Duration(
+                                milliseconds: totalElapsed.inMilliseconds +
+                                    timer.elapsedMilliseconds);
+                          });
                           var result = await _showDialog(
-                              context, elapsedTime, description, startDate);
+                              context, totalElapsed, description, startDate);
                           setState(() {
                             ring = false;
                           });
@@ -394,26 +446,37 @@ class _MainPageState extends State<MainPage> {
                                     height: 32,
                                     child: Row(
                                       children: [
-                                        Container(height: 16,width: 16,child:CircularProgressIndicator(valueColor: new AlwaysStoppedAnimation<Color>(Colors.blue),)),
-                                        Container(width: 16,),
+                                        Container(
+                                            height: 16,
+                                            width: 16,
+                                            child:
+                                            CircularProgressIndicator(
+                                              valueColor:
+                                              new AlwaysStoppedAnimation<
+                                                  Color>(Colors.blue),
+                                            )),
+                                        Container(
+                                          width: 16,
+                                        ),
                                         Text(
                                           "Saving ...",
-                                          style:
-                                          TextStyle(color: Colors.black87),
+                                          style: TextStyle(
+                                              color: Colors.black87),
                                         )
                                       ],
                                     ))));
                             try {
                               await timerData.timersQueue
                                   .forEach((Timer timer) async {
-                                    //print("timer: ${timer.toJson()}");
+                                print("timer: ${timer.toJson()}");
                                 await _toggl.postTime(
                                     duration: Duration(
-                                        milliseconds: timer
-                                            .elapsedMilliseconds),
+                                        milliseconds:
+                                        timer.elapsedMilliseconds),
                                     startDate:
                                     DateTime.fromMillisecondsSinceEpoch(
-                                        timer.startMillisecondssinceepoch*1000),
+                                        timer.startMillisecondssinceepoch *
+                                            1000),
                                     countTime: countTime,
                                     description: description,
                                     sprint: sprint);
@@ -421,7 +484,7 @@ class _MainPageState extends State<MainPage> {
                               await sqlDatabase.stop();
                               _isAnimating = false;
                               await _loadData();
-                            }catch(e){
+                            } catch (e) {
                               print("error ao upload: $e");
                               //todo try again or cancel
                             }
@@ -430,7 +493,7 @@ class _MainPageState extends State<MainPage> {
 
                             setState(() {});
                           }
-                        }),
+                        }),) ,
                   ),
                   Positioned(
                     bottom: 0,
@@ -555,13 +618,13 @@ class _MainPageState extends State<MainPage> {
     _refreshController.refreshCompleted();
   }
 
-  void _onLoading() async {
+  /*void _onLoading() async {
     // monitor network fetch
     // await Future.delayed(Duration(milliseconds: 1000));
     // if failed,use loadFailed(),if no data return,use LoadNodata()
     if (mounted) setState(() {});
     _refreshController.loadComplete();
-  }
+  }*/
 
   Widget extras(BuildContext context) {
     return Column(children: <Widget>[
@@ -823,14 +886,28 @@ class _MainPageState extends State<MainPage> {
                               fontWeight: FontWeight.normal,
                               color: Colors.black87),
                         ),
-                        Text(
-                          issue.key,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: 12.0,
-                            fontWeight: FontWeight.w400,
-                            color: Colors.grey,
-                          ),
+                        Row(
+                          children: [
+                            issue.fields.customfield_10023 != null
+                                ? Padding(
+                                    padding: EdgeInsets.only(right: 8),
+                                    child: Icon(
+                                      Icons.flag,
+                                      color: Colors.red,
+                                      size: 12,
+                                    ),
+                                  )
+                                : Container(),
+                            Text(
+                              issue.key,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 12.0,
+                                fontWeight: FontWeight.w400,
+                                color: Colors.grey,
+                              ),
+                            )
+                          ],
                         )
                       ],
                     ),
@@ -867,7 +944,7 @@ class _MainPageState extends State<MainPage> {
                   int responseStatus = await _jira.updateIssue(issue.key);
                   print("Response code: $responseStatus");
                   if (responseStatus >= 200 && responseStatus < 300) {
-                    _loadData();
+                    await _refreshController.requestRefresh();
                   }
                 },
               ),

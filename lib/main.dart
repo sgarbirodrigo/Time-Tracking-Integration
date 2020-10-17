@@ -297,6 +297,7 @@ class _MainPageState extends State<MainPage> {
                 /*Container(
               height: 52.0,
               child: AppBar(
+                backgroundColor:
                 Colors.transparent,
                 elevation: dismissAppbar ? 1.0 : 0.0,
                 title: SimpleLinkBar(

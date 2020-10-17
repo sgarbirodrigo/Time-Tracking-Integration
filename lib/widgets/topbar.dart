@@ -42,7 +42,6 @@ class Correlation {
 class _MyTopBarState extends State<MyTopBar> {
   @override
   void initState() {
-
     super.initState();
     _loadProjects();
   }
@@ -94,7 +93,7 @@ class _MyTopBarState extends State<MyTopBar> {
         await prefs.getString(SharedPreferenceConstants.PROJECT_JIRA_AVATAR);
 
     print("jira selected $jiraSelectedProject_id - $projectId");
-    setState(() {});
+    if (mounted) setState(() {});
   }
 
   @override
@@ -110,6 +109,7 @@ class _MyTopBarState extends State<MyTopBar> {
               ? GestureDetector(
                   onTap: () {
                     showDialog(
+                      barrierDismissible: false,
                         context: context,
                         builder: (BuildContext context) {
                           return StatefulBuilder(builder: (context, setState) {

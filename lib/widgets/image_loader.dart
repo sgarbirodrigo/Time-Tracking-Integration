@@ -6,9 +6,8 @@ import 'package:timetrackingintegration/jira/jira.dart';
 class JiraAvatarLoader extends StatefulWidget {
   String url;
   Map<String, String> headers;
-  JiraAvatarLoader({this.url, this.headers}) {
-    //print("check url: ${this.url}");
-  }
+
+  JiraAvatarLoader({this.url, this.headers}) {}
 
   @override
   State<StatefulWidget> createState() {
@@ -20,37 +19,31 @@ class _JiraAvatarLoaderState extends State<JiraAvatarLoader> {
   @override
   void initState() {
     super.initState();
-    //print("init loader");
-    _loadAvatar();
   }
 
   Image image;
-
   int isSVG = 0;
 
-  _loadAvatar() async {
+  _checkAvatarType() async {
     Jira jira = Jira();
-    //print("enter load");
     if (widget.url != null) {
-      //print("url NOT null");
       try {
         image = await jira.getAvatar(widget.url);
         isSVG = 1;
       } catch (e) {
-        print("error load avatar: ${e.hashCode}");
+        //print("Err: $e");
+        //print("error load avatar: ${e.hashCode}");
         isSVG = -1;
       }
     } else {
-      print("url null");
       isSVG = 0;
     }
-    //print("url: ${widget.url}");
-    setState(() {});
+    if (mounted) setState(() {});
   }
 
   @override
   Widget build(BuildContext context) {
-    //print("isSVG: $isSVG");
+    if (isSVG > -1) _checkAvatarType();
     Widget imageWidget;
     double size = 48;
     if (isSVG == 1) {

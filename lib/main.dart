@@ -1,3 +1,4 @@
+
 import 'package:flutter_datetime_picker/flutter_datetime_picker.dart';
 import 'package:timetrackingintegration/tools/constants.dart';
 import 'package:timetrackingintegration/tools/custom_scrollcontrol.dart';
@@ -325,6 +326,7 @@ class _MainPageState extends State<MainPage> {
                         left: 0,
                         right: 0,
                         child: MyTopBar(
+                          key: linkKey,
                           isAnimating: _isAnimating,
                           timeDebt: _timeDebt,
                           timeElapsedToday: _timeElapsedToday,

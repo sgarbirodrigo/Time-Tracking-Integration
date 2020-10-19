@@ -66,7 +66,7 @@ class _MainPageState extends State<MainPage> {
       _timeElapsedToday,
       _timeElapsedVirtualToday,
       _dailyMinimum;
-  Color _activeColor = Colors.red;
+  Color _activeColor = Colors.grey;
   bool countTime;
   TextEditingController _extraDescriptionController;
   SharedPreferences _prefs;
@@ -106,7 +106,7 @@ class _MainPageState extends State<MainPage> {
       this._selectedIssue = jiraIssue;
 
       _isAnimating = true;
-    }else{
+    } else {
       _isAnimating = false;
     }
     setState(() {});
@@ -118,6 +118,12 @@ class _MainPageState extends State<MainPage> {
     _extraDescriptionController = TextEditingController(text: "");
     _requestIOSPermissions();
     _loadDB();
+    _timer = Timer.periodic(Duration(seconds: 1), (timer) {
+      setState(() {
+        _activeColor =
+            Tools.getBackgroundColor(_timeElapsedVirtualToday, _dailyMinimum);
+      });
+    });
     WidgetsBinding.instance
         .addObserver(LifecycleEventHandler(resumeCallBack: () async {
       print("binded");
@@ -237,7 +243,6 @@ class _MainPageState extends State<MainPage> {
     await _loadSharedPreferences();
     await _loadTogglData();
     await _loadJiraIssues();
-    //print("end load data");
     if (mounted) setState(() {});
   }
 
@@ -245,7 +250,7 @@ class _MainPageState extends State<MainPage> {
     _jira = Jira();
     try {
       this._jiraIssues = await _jira.getIssues();
-      if(this._jiraIssues.issues.length>0) {
+      if (this._jiraIssues.issues.length > 0) {
         this._selectedIssue = this._jiraIssues.issues[0];
       }
     } catch (e) {
@@ -267,15 +272,13 @@ class _MainPageState extends State<MainPage> {
       _timeElapsedVirtualToday = _timeElapsedToday;
 
       _recents = await _toggl.getRecents();
-      Timer(Duration(seconds: 1), () {
-        _activeColor =
-            Tools.getBackgroundColor(_timeElapsedVirtualToday, _dailyMinimum);
-      });
     } catch (e) {
       _recents = List();
       print("load toggl error: $e");
     }
   }
+
+  Timer _timer;
 
   @override
   Widget build(BuildContext context) {
@@ -384,12 +387,8 @@ class _MainPageState extends State<MainPage> {
                                 _timeElapsedVirtualToday = Duration(
                                     milliseconds:
                                         _timeElapsedToday.inMilliseconds +
-                                            duration.inMilliseconds +
-                                            Duration(
-                                                    minutes:
-                                                        10 * duration.inSeconds)
-                                                .inMilliseconds);
-                                print("Elapsed: $_timeElapsedVirtualToday");
+                                            duration.inMilliseconds);
+                                //print("Elapsed: $_timeElapsedVirtualToday");
                                 _activeColor = Tools.getBackgroundColor(
                                     _timeElapsedVirtualToday, _dailyMinimum);
                               },

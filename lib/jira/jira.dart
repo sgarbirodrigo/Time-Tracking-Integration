@@ -60,7 +60,7 @@ class Jira {
     print("start get issues ${await _domainId} - ${await _projectId} - ${JiraStatusConstants.IN_PROGRESS}");
     String rawUrl = "https://${await _domainId}.atlassian.net/rest/api/2/search?&maxResults=" +
         this.maxResults.toString() +
-        "&fields=summary,flag,status,timespent,customfield_10016,customfield_10023,parent&jql=project=${await _projectId} AND (issueType=Story or issuetype = Bug) AND statusCategory = ${JiraStatusConstants.IN_PROGRESS}";
+        "&fields=summary,flag,status,timespent,customfield_10016,customfield_10023,parent&jql=project=${await _projectId} AND (issueType=Story or issuetype = Bug) AND statusCategory = ${JiraStatusConstants.IN_PROGRESS}  ORDER BY Rank ASC";
     print("rawURl: $rawUrl");
     try {
       String url = Uri.encodeFull(

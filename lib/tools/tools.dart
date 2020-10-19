@@ -73,23 +73,31 @@ class Tools {
       },
     );
   }
-  static Color getBackgroundColor(Duration elapsed, Duration minimum){
-    Color color;
 
-    Color zeroColor = Colors.red;
-    Color intermedium = Colors.orange;
-    Color minimumColor = Colors.green;
-    Color bestColor = Colors.blue;
+  static Color getBackgroundColor(Duration elapsed, Duration minimum) {
+    try {
 
-    double proportion = elapsed.inMilliseconds/minimum.inMilliseconds;
+      //elapsed = Duration(milliseconds: Duration(minutes:360).inMilliseconds);
+      Color color;
 
-    if(proportion<0.5){
-      color = Color.lerp(zeroColor, intermedium, proportion);
-    }else if (proportion>=0.5 && proportion<=1){
-      color = Color.lerp(intermedium, minimumColor, proportion);
-    }else{
-      color = Color.lerp(intermedium, bestColor, (proportion-1));
+      Color zeroColor = Colors.red;
+      Color intermedium = Colors.orange;
+      Color minimumColor = Colors.green;
+      Color bestColor = Colors.blue;
+
+      double proportion = elapsed.inMilliseconds / minimum.inMilliseconds;
+
+      if (proportion < 0.5) {
+        color = Color.lerp(zeroColor, intermedium, proportion);
+      } else if (proportion >= 0.5 && proportion <= 1) {
+        color = Color.lerp(intermedium, minimumColor, proportion);
+      } else {
+        color = Color.lerp(minimumColor, bestColor, (proportion - 1));
+      }
+      return color;
+    } catch (e) {
+      print("background color error: $e");
+      return Colors.grey;
     }
-    return color;
   }
 }

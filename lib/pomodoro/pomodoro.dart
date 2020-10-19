@@ -246,7 +246,7 @@ class _PomodoroState extends State<Pomodoro> with TickerProviderStateMixin {
               : animationController.value;
           Duration duration_new = this.animationController.duration * value;
           alarm.scheduleNotification(
-              "Take a break!", "Pomodoro finished", duration_new);
+              "Timer Finished!", "You've been focused for ${duration_new.inMinutes.toString()} minutes into ${widget.selectedIssue.fields.summary.length>25?widget.selectedIssue.fields.summary.substring(0,24):widget.selectedIssue.fields.summary}. Save your progress for later analysis.", duration_new);
           animationController.reverse(from: value);
           widget.onPlay(duration_new);
         }
@@ -255,7 +255,7 @@ class _PomodoroState extends State<Pomodoro> with TickerProviderStateMixin {
         widget.onError("You should focus for more than ZERO :)");
       }
     } else {
-      widget.onError("Choose a task to work on");
+      widget.onError("Choose a task to focus!");
     }
   }
 

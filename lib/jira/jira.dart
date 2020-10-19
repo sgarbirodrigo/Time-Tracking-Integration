@@ -57,12 +57,14 @@ class Jira {
   }
 
   Future<JiraIssues> getIssues() async {
-    //print("start get issues");
+    print("start get issues ${await _domainId} - ${await _projectId} - ${JiraStatusConstants.IN_PROGRESS}");
+    String rawUrl = "https://${await _domainId}.atlassian.net/rest/api/2/search?&maxResults=" +
+        this.maxResults.toString() +
+        "&fields=summary,flag,status,timespent,customfield_10016,customfield_10023,parent&jql=project=${await _projectId} AND (issueType=Story or issuetype = Bug) AND statusCategory = ${JiraStatusConstants.IN_PROGRESS}";
+    print("rawURl: $rawUrl");
     try {
       String url = Uri.encodeFull(
-          "https://${await _domainId}.atlassian.net/rest/api/2/search?&maxResults=" +
-              this.maxResults.toString() +
-              "&fields=summary,flag,status,timespent,customfield_10016,customfield_10023,parent&jql=project=${await _projectId} AND issueType=Story AND statusCategory = ${JiraStatusConstants.IN_PROGRESS}");
+          rawUrl);
       http.Response response = await (http.get(
         url,
         headers: await headerAuth,
@@ -70,7 +72,7 @@ class Jira {
 
       JiraIssues data =
           JiraIssues.fromJson(json.decode(utf8.decode(response.bodyBytes)));
-      //print("data issues: ${data.issues.toString()}");
+      print("data issues: ${data.issues.toString()}");
       return data;
     } catch (e) {
       print("error on get issues: $e");

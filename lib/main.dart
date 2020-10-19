@@ -1,4 +1,3 @@
-
 import 'package:flutter_datetime_picker/flutter_datetime_picker.dart';
 import 'package:timetrackingintegration/tools/constants.dart';
 import 'package:timetrackingintegration/tools/custom_scrollcontrol.dart';
@@ -240,8 +239,11 @@ class _MainPageState extends State<MainPage> {
 
     try {
       this._jiraIssues = await _jira.getIssues();
+
       this._selectedIssue = this._jiraIssues.issues[0];
+
     } catch (e) {
+      print("load jira error: $e");
       this._selectedIssue = null;
       _jiraIssues = null;
     }

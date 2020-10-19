@@ -22,6 +22,7 @@ import 'alarm/alarm.dart';
 import 'jira/jira.dart';
 import 'pomodoro/pomodoro.dart';
 import 'toggl/toggl.dart';
+import 'dart:async';
 
 void main() {
   Alarm.initialMainConfig();
@@ -61,7 +62,10 @@ class _MainPageState extends State<MainPage> {
   JiraIssues _jiraIssues;
   Issue _selectedIssue;
   int _numberPomodore;
-  Duration _timeDebt, _timeElapsedToday, _dailyMinimum;
+  Duration _timeDebt,
+      _timeElapsedToday,
+      _timeElapsedVirtualToday,
+      _dailyMinimum;
   Color _activeColor = Colors.red;
   bool countTime;
   TextEditingController _extraDescriptionController;
@@ -100,7 +104,10 @@ class _MainPageState extends State<MainPage> {
       jiraIssue.key = timerData.taskId;
       jiraIssue.fields = fields;
       this._selectedIssue = jiraIssue;
+
       _isAnimating = true;
+    }else{
+      _isAnimating = false;
     }
     setState(() {});
   }
@@ -236,12 +243,11 @@ class _MainPageState extends State<MainPage> {
 
   _loadJiraIssues() async {
     _jira = Jira();
-
     try {
       this._jiraIssues = await _jira.getIssues();
-
-      this._selectedIssue = this._jiraIssues.issues[0];
-
+      if(this._jiraIssues.issues.length>0) {
+        this._selectedIssue = this._jiraIssues.issues[0];
+      }
     } catch (e) {
       print("load jira error: $e");
       this._selectedIssue = null;
@@ -256,9 +262,15 @@ class _MainPageState extends State<MainPage> {
           DateTime.tryParse(
               await _prefs.getString(SharedPreferenceConstants.DATE_SINCE)),
           _dailyMinimum);
+
       _timeElapsedToday = await _toggl.getAccumulatedTime(DateTime.now());
+      _timeElapsedVirtualToday = _timeElapsedToday;
+
       _recents = await _toggl.getRecents();
-      _activeColor = Tools.getBackgroundColor(_timeElapsedToday, _dailyMinimum);
+      Timer(Duration(seconds: 1), () {
+        _activeColor =
+            Tools.getBackgroundColor(_timeElapsedVirtualToday, _dailyMinimum);
+      });
     } catch (e) {
       _recents = List();
       print("load toggl error: $e");
@@ -369,12 +381,17 @@ class _MainPageState extends State<MainPage> {
                                     )));
                               },
                               onTimeTick: (Duration duration) {
-                                Duration elapsedTotal = Duration(
+                                _timeElapsedVirtualToday = Duration(
                                     milliseconds:
                                         _timeElapsedToday.inMilliseconds +
-                                            duration.inMilliseconds);
+                                            duration.inMilliseconds +
+                                            Duration(
+                                                    minutes:
+                                                        10 * duration.inSeconds)
+                                                .inMilliseconds);
+                                print("Elapsed: $_timeElapsedVirtualToday");
                                 _activeColor = Tools.getBackgroundColor(
-                                    elapsedTotal, _dailyMinimum);
+                                    _timeElapsedVirtualToday, _dailyMinimum);
                               },
                               onStatusChange: (isAnimating) {
                                 this._isAnimating = isAnimating;
@@ -445,7 +462,7 @@ class _MainPageState extends State<MainPage> {
                                 Duration totalElapsed =
                                     Duration(milliseconds: 0);
                                 await timerData.timersQueue
-                                    .forEach((Timer timer) async {
+                                    .forEach((TimerSQL timer) async {
                                   totalElapsed = Duration(
                                       milliseconds:
                                           totalElapsed.inMilliseconds +
@@ -494,7 +511,7 @@ class _MainPageState extends State<MainPage> {
                                               ))));
                                   try {
                                     await timerData.timersQueue
-                                        .forEach((Timer timer) async {
+                                        .forEach((TimerSQL timer) async {
                                       print("timer: ${timer.toJson()}");
                                       await _toggl.postTime(
                                           duration: Duration(

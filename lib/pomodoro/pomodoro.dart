@@ -66,7 +66,7 @@ class _PomodoroState extends State<Pomodoro> with TickerProviderStateMixin {
     try {
       Duration duration = animationController.duration *
           (animationController.value == 0 ? 1 : animationController.value);
-      widget.onTimeTick(duration);
+      widget.onTimeTick(Duration(milliseconds: animationController.duration.inMilliseconds - duration.inMilliseconds));
       return '${duration.inMinutes.toString().padLeft(2, '0')}:${(duration.inSeconds % 60).toString().padLeft(2, '0')}';
     } catch (e) {
       print("error: ${e}");
@@ -110,7 +110,7 @@ class _PomodoroState extends State<Pomodoro> with TickerProviderStateMixin {
           timerData.runningTimerStartMillisinceepoch);
       Duration elapsedDuration = Duration(milliseconds: 0);
 
-      timerData.timersQueue.forEach((Timer timer) {
+      timerData.timersQueue.forEach((TimerSQL timer) {
         elapsedDuration = Duration(
             milliseconds:
                 elapsedDuration.inMilliseconds + timer.elapsedMilliseconds);
@@ -136,6 +136,7 @@ class _PomodoroState extends State<Pomodoro> with TickerProviderStateMixin {
       jiraIssue.key = timerData.taskId;
       jiraIssue.fields = fields;
       widget.selectedIssue = jiraIssue;
+      print("issue: ${widget.selectedIssue.fields.summary}");
       Duration expectedDuration =
           Duration(milliseconds: timerData.timerExpectedDurationMilli);
       DateTime startedDate = DateTime.fromMillisecondsSinceEpoch(
@@ -143,7 +144,7 @@ class _PomodoroState extends State<Pomodoro> with TickerProviderStateMixin {
       Duration elapsedDuration = Duration(milliseconds: 0);
 
       if (timerData.timersQueue != null) {
-        timerData.timersQueue.forEach((Timer timer) {
+        timerData.timersQueue.forEach((TimerSQL timer) {
           elapsedDuration = Duration(
               milliseconds:
                   elapsedDuration.inMilliseconds + timer.elapsedMilliseconds);

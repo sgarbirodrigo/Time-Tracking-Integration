@@ -235,7 +235,7 @@ class SqlDatabase {
   }
 
   _addTimeToQueue(DateTime dateTime, Duration elapsed) async {
-    Timer timer = Timer();
+    TimerSQL timer = TimerSQL();
     timer.startMillisecondssinceepoch = dateTime.millisecondsSinceEpoch;
     timer.elapsedMilliseconds = elapsed.inMilliseconds;
     await this.db.insert(
@@ -251,13 +251,13 @@ class SqlDatabase {
         );
   }
 
-  Future<List<Timer>> _getTimersOnQueue() async {
+  Future<List<TimerSQL>> _getTimersOnQueue() async {
     List<Map<String, dynamic>> maps =
         await this.getTable(SQL_TABLE_CONSTANTS.TIMERS);
     if (maps.length > 0) {
-      List<Timer> timers = List();
+      List<TimerSQL> timers = List();
       maps.forEach((map) {
-        timers.add(Timer.fromJson(map));
+        timers.add(TimerSQL.fromJson(map));
       });
       return timers;
     } else {
@@ -270,7 +270,7 @@ class SqlDatabase {
         await this.getTable(SQL_TABLE_CONSTANTS.TIMER_DATA);
     if (maps.length > 0) {
       TimerData timerData = TimerData.fromJson(maps[0]);
-      List<Timer> timers = await _getTimersOnQueue();
+      List<TimerSQL> timers = await _getTimersOnQueue();
       timerData.timersQueue = timers;
       return timerData;
     } else {
@@ -284,7 +284,7 @@ class TimerData {
   int _runningTimerStartMillisinceepoch;
   int _runningTimerStartDurationMilli;
   int _timerExpectedDurationMilli;
-  List<Timer> _timersQueue;
+  List<TimerSQL> _timersQueue;
 
   get taskParentId => _taskParentId;
 
@@ -310,7 +310,7 @@ class TimerData {
 
   int get runningTimerStartDurationMilli => _runningTimerStartDurationMilli;
 
-  List<Timer> get timersQueue => _timersQueue;
+  List<TimerSQL> get timersQueue => _timersQueue;
 
   set status(String value) {
     _status = value;
@@ -324,7 +324,7 @@ class TimerData {
       int runningTimerStartMillisinceepoch,
       int runningTimerStartDurationMilli,
       int timerExpectedDurationMilli,
-      List<Timer> timersQueue}) {
+      List<TimerSQL> timersQueue}) {
     _status = status;
     _taskName = taskName;
     _taskId = taskId;
@@ -347,7 +347,7 @@ class TimerData {
     if (json["timersQueue"] != null) {
       _timersQueue = [];
       json["timersQueue"].forEach((v) {
-        _timersQueue.add(Timer.fromJson(v));
+        _timersQueue.add(TimerSQL.fromJson(v));
       });
     }
   }
@@ -375,7 +375,7 @@ class TimerData {
     _runningTimerStartDurationMilli = value;
   }
 
-  set timersQueue(List<Timer> value) {
+  set timersQueue(List<TimerSQL> value) {
     _timersQueue = value;
   }
 
@@ -386,7 +386,7 @@ class TimerData {
   }
 }
 
-class Timer {
+class TimerSQL {
   int _startMillisecondssinceepoch;
   int _elapsedMilliseconds;
 
@@ -398,12 +398,12 @@ class Timer {
 
   int get elapsedMilliseconds => _elapsedMilliseconds;
 
-  Timer({int startMillisecondssinceepoch, int elapsedMilliseconds}) {
+  TimerSQL({int startMillisecondssinceepoch, int elapsedMilliseconds}) {
     _startMillisecondssinceepoch = startMillisecondssinceepoch;
     _elapsedMilliseconds = elapsedMilliseconds;
   }
 
-  Timer.fromJson(dynamic json) {
+  TimerSQL.fromJson(dynamic json) {
     _startMillisecondssinceepoch = json["startMillisecondssinceepoch"];
     _elapsedMilliseconds = json["elapsedMilliseconds"];
   }

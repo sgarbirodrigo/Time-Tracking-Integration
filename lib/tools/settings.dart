@@ -179,7 +179,7 @@ class _ModalWithNavigatorState extends State<ModalWithNavigator> {
                                   setStateIn(() {});
                                 },
                               ),
-                              SettingsTile(
+                              /*SettingsTile(
                                 title: 'Project',
                                 leading: Icon(Icons.work),
                                 subtitle: !Tools.isStringValid(jiraSelectedProject_name)
@@ -201,7 +201,7 @@ class _ModalWithNavigatorState extends State<ModalWithNavigator> {
                                   );
                                   setStateIn(() {});
                                 },
-                              ),
+                              ),*/
                             ],
                           ),
                           togglValid
@@ -210,7 +210,7 @@ class _ModalWithNavigatorState extends State<ModalWithNavigator> {
                                   tiles: [
                                     SettingsTile(
                                       title: 'Token',
-                                      subtitle: jiraToken != null
+                                      subtitle: togglToken != null
                                           ? "*************"
                                           : "Inser your token",
                                       leading: Icon(Icons.security),
@@ -252,7 +252,7 @@ class _ModalWithNavigatorState extends State<ModalWithNavigator> {
                                         setStateIn(() {});
                                       },
                                     ),
-                                    SettingsTile(
+                                    /*SettingsTile(
                                       title: 'Project',
                                       leading: Icon(Icons.folder_open),
                                       subtitle: togglToken.isEmpty
@@ -274,7 +274,7 @@ class _ModalWithNavigatorState extends State<ModalWithNavigator> {
                                         );
                                         setStateIn(() {});
                                       },
-                                    ),
+                                    ),*/
                                   ],
                                 )
                               : SettingsSection(

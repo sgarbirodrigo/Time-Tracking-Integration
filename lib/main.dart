@@ -284,6 +284,7 @@ class _MainPageState extends State<MainPage> {
   Widget build(BuildContext context) {
     var data = MediaQuery.of(context);
     double heightFinal = data.size.height - 54 - kToolbarHeight;
+    //print("hehght: ${(heightFinal/ 4) * 2}");
     return RefreshConfiguration(
         /*headerTriggerDistance: 6.0,
         // header trigger refresh trigger distance
@@ -336,12 +337,9 @@ class _MainPageState extends State<MainPage> {
                   controller: _refreshController,
                   onRefresh: _onRefresh,
                   //onLoading: _onLoading,
-                  child: Stack(
+                  child: Column(
                     children: <Widget>[
-                      Positioned(
-                        top: 8,
-                        left: 0,
-                        right: 0,
+                      Container(
                         child: MyTopBar(
                           key: linkKey,
                           isAnimating: _isAnimating,
@@ -353,315 +351,284 @@ class _MainPageState extends State<MainPage> {
                           },
                         ),
                       ),
-                      Positioned(
-                        top: !_isAnimating ? 64 : 0,
-                        left: 0,
-                        right: 0,
-                        bottom: _isAnimating ? 0 : null,
-                        child: Container(
-                          child: Pomodoro(
-                              dailyMinimum: _dailyMinimum,
-                              numberPomodore: _numberPomodore,
-                              elapsedToday: _timeElapsedToday,
-                              activeColor: _activeColor,
-                              selectedIssue: this._selectedIssue,
-                              countTime: countTime,
-                              onError: (message) {
-                                Scaffold.of(context).showSnackBar(SnackBar(
-                                    elevation: 4,
-                                    backgroundColor: Colors.white,
-                                    action: SnackBarAction(
-                                      label: "OK",
-                                      onPressed: () {},
-                                    ),
-                                    behavior: SnackBarBehavior.floating,
-                                    shape: RoundedRectangleBorder(
-                                        borderRadius:
-                                            BorderRadius.circular(8.0)),
-                                    content: Text(
-                                      message,
-                                      style: TextStyle(color: Colors.black87),
-                                    )));
-                              },
-                              onTimeTick: (Duration duration) {
-                                _timeElapsedVirtualToday = Duration(
-                                    milliseconds:
-                                        _timeElapsedToday.inMilliseconds +
-                                            duration.inMilliseconds);
-                                //print("Elapsed: $_timeElapsedVirtualToday");
-                                _activeColor = Tools.getBackgroundColor(
-                                    _timeElapsedVirtualToday, _dailyMinimum);
-                              },
-                              onStatusChange: (isAnimating) {
-                                this._isAnimating = isAnimating;
-                                if (mounted) setState(() {});
-                              },
-                              onPause: () async {
-                                await sqlDatabase.pause();
-                              },
-                              onBreak: () async {
-                                await sqlDatabase.hitMax();
-                              },
-                              onPlay: (duration) async {
-                                print("duration $duration");
-                                String parentName = "";
-                                try {
-                                  parentName = _selectedIssue
-                                      .fields.parent.fields.summary;
-                                } catch (e) {
-                                  parentName = null;
+                      Container(
+                        height: (heightFinal / 3) * 2,
+                        child: Pomodoro(
+                            heightSize: (heightFinal / 3) * 2,
+                            dailyMinimum: _dailyMinimum,
+                            numberPomodore: _numberPomodore,
+                            elapsedToday: _timeElapsedToday,
+                            activeColor: _activeColor,
+                            selectedIssue: this._selectedIssue,
+                            countTime: countTime,
+                            onError: (message) {
+                              Scaffold.of(context).showSnackBar(SnackBar(
+                                  elevation: 4,
+                                  backgroundColor: Colors.white,
+                                  action: SnackBarAction(
+                                    label: "OK",
+                                    onPressed: () {},
+                                  ),
+                                  behavior: SnackBarBehavior.floating,
+                                  shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8.0)),
+                                  content: Text(
+                                    message,
+                                    style: TextStyle(color: Colors.black87),
+                                  )));
+                            },
+                            onTimeTick: (Duration duration) {
+                              _timeElapsedVirtualToday = Duration(
+                                  milliseconds:
+                                      _timeElapsedToday.inMilliseconds +
+                                          duration.inMilliseconds);
+                              //print("Elapsed: $_timeElapsedVirtualToday");
+                              _activeColor = Tools.getBackgroundColor(
+                                  _timeElapsedVirtualToday, _dailyMinimum);
+                            },
+                            onStatusChange: (isAnimating) {
+                              this._isAnimating = isAnimating;
+                              if (mounted) setState(() {});
+                            },
+                            onPause: () async {
+                              await sqlDatabase.pause();
+                            },
+                            onBreak: () async {
+                              await sqlDatabase.hitMax();
+                            },
+                            onPlay: (duration) async {
+                              print("duration $duration");
+                              String parentName = "";
+                              try {
+                                parentName =
+                                    _selectedIssue.fields.parent.fields.summary;
+                              } catch (e) {
+                                parentName = null;
+                              }
+
+                              await sqlDatabase.play(
+                                  duration,
+                                  _selectedIssue.key,
+                                  _selectedIssue.fields.summary,
+                                  parentName);
+
+                              TimerData timerData =
+                                  await sqlDatabase.getTimerData();
+                              print("timerData: ${timerData.toJson()}");
+                            },
+                            onCancel: () async {
+                              print("cancel");
+                              await sqlDatabase.stop();
+                              TimerData timerData =
+                                  await sqlDatabase.getTimerData();
+                              print("timerData: ${timerData.toJson()}");
+                              if (mounted) setState(() {});
+                            },
+                            onStop: (elapsedTimes, startDate) async {
+                              print("stop");
+                              /* await sqlDatabase.pause();*/
+                              TimerData timerData =
+                                  await sqlDatabase.getTimerData();
+                              bool ring = true;
+                              Future.delayed(const Duration(milliseconds: 500),
+                                  () async {
+                                while (ring) {
+                                  await FlutterRingtonePlayer.play(
+                                      android: AndroidSounds.alarm,
+                                      ios: IosSounds.alarm,
+                                      looping: true,
+                                      volume: 1.0,
+                                      asAlarm: true);
+                                  await Future.delayed(
+                                      const Duration(seconds: 2));
                                 }
+                              });
+                              String description = "", sprint = null;
+                              if (timerData.taskId == null) {
+                                description = "${timerData.taskName}";
+                              } else {
+                                description =
+                                    "${timerData.taskId}: ${timerData.taskName}";
+                                sprint = timerData.taskParentId;
+                              }
+                              Duration totalElapsed = Duration(milliseconds: 0);
+                              await timerData.timersQueue
+                                  .forEach((TimerSQL timer) async {
+                                totalElapsed = Duration(
+                                    milliseconds: totalElapsed.inMilliseconds +
+                                        timer.elapsedMilliseconds);
+                              });
+                              var result = await _showDialog(context,
+                                  totalElapsed, description, startDate);
+                              setState(() {
+                                ring = false;
+                              });
 
-                                await sqlDatabase.play(
-                                    duration,
-                                    _selectedIssue.key,
-                                    _selectedIssue.fields.summary,
-                                    parentName);
-
-                                TimerData timerData =
-                                    await sqlDatabase.getTimerData();
-                                print("timerData: ${timerData.toJson()}");
-                              },
-                              onCancel: () async {
-                                print("cancel");
-                                await sqlDatabase.stop();
-                                TimerData timerData =
-                                    await sqlDatabase.getTimerData();
-                                print("timerData: ${timerData.toJson()}");
-                                if (mounted) setState(() {});
-                              },
-                              onStop: (elapsedTimes, startDate) async {
-                                print("stop");
-                                /* await sqlDatabase.pause();*/
-                                TimerData timerData =
-                                    await sqlDatabase.getTimerData();
-                                bool ring = true;
-                                Future.delayed(
-                                    const Duration(milliseconds: 500),
-                                    () async {
-                                  while (ring) {
-                                    await FlutterRingtonePlayer.play(
-                                        android: AndroidSounds.alarm,
-                                        ios: IosSounds.alarm,
-                                        looping: true,
-                                        volume: 1.0,
-                                        asAlarm: true);
-                                    await Future.delayed(
-                                        const Duration(seconds: 2));
-                                  }
-                                });
-                                String description = "", sprint = null;
-                                if (timerData.taskId == null) {
-                                  description = "${timerData.taskName}";
-                                } else {
-                                  description =
-                                      "${timerData.taskId}: ${timerData.taskName}";
-                                  sprint = timerData.taskParentId;
-                                }
-                                Duration totalElapsed =
-                                    Duration(milliseconds: 0);
-                                await timerData.timersQueue
-                                    .forEach((TimerSQL timer) async {
-                                  totalElapsed = Duration(
-                                      milliseconds:
-                                          totalElapsed.inMilliseconds +
-                                              timer.elapsedMilliseconds);
-                                });
-                                var result = await _showDialog(context,
-                                    totalElapsed, description, startDate);
-                                setState(() {
-                                  ring = false;
-                                });
-
-                                if (result == "save") {
-                                  ScaffoldFeatureController snackbar = Scaffold
-                                          .of(context)
-                                      .showSnackBar(SnackBar(
-                                          elevation: 4,
-                                          backgroundColor: Colors.white,
-                                          //action: CircularProgressIndicator(),
-                                          behavior: SnackBarBehavior.floating,
-                                          shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(8.0)),
-                                          content: Container(
-                                              height: 32,
-                                              child: Row(
-                                                children: [
-                                                  Container(
-                                                      height: 16,
-                                                      width: 16,
-                                                      child:
-                                                          CircularProgressIndicator(
-                                                        valueColor:
-                                                            new AlwaysStoppedAnimation<
-                                                                    Color>(
-                                                                Colors.blue),
-                                                      )),
-                                                  Container(
+                              if (result == "save") {
+                                ScaffoldFeatureController snackbar =
+                                    Scaffold.of(context).showSnackBar(SnackBar(
+                                        elevation: 4,
+                                        backgroundColor: Colors.white,
+                                        //action: CircularProgressIndicator(),
+                                        behavior: SnackBarBehavior.floating,
+                                        shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(8.0)),
+                                        content: Container(
+                                            height: 32,
+                                            child: Row(
+                                              children: [
+                                                Container(
+                                                    height: 16,
                                                     width: 16,
-                                                  ),
-                                                  Text(
-                                                    "Saving ...",
-                                                    style: TextStyle(
-                                                        color: Colors.black87),
-                                                  )
-                                                ],
-                                              ))));
-                                  try {
-                                    await timerData.timersQueue
-                                        .forEach((TimerSQL timer) async {
-                                      print("timer: ${timer.toJson()}");
-                                      await _toggl.postTime(
-                                          duration: Duration(
-                                              milliseconds:
-                                                  timer.elapsedMilliseconds),
-                                          startDate: DateTime
-                                              .fromMillisecondsSinceEpoch(timer
-                                                      .startMillisecondssinceepoch *
-                                                  1000),
-                                          countTime: countTime,
-                                          description: description,
-                                          sprint: sprint);
-                                    });
-                                    await sqlDatabase.stop();
-                                    _isAnimating = false;
-                                    _refreshController.requestRefresh();
-                                  } catch (e) {
-                                    print("error ao upload: $e");
-                                    //todo try again or cancel
-                                  }
-                                  snackbar.close();
-                                } else {
+                                                    child:
+                                                        CircularProgressIndicator(
+                                                      valueColor:
+                                                          new AlwaysStoppedAnimation<
+                                                                  Color>(
+                                                              Colors.blue),
+                                                    )),
+                                                Container(
+                                                  width: 16,
+                                                ),
+                                                Text(
+                                                  "Saving ...",
+                                                  style: TextStyle(
+                                                      color: Colors.black87),
+                                                )
+                                              ],
+                                            ))));
+                                try {
+                                  await timerData.timersQueue
+                                      .forEach((TimerSQL timer) async {
+                                    print("timer: ${timer.toJson()}");
+                                    await _toggl.postTime(
+                                        duration: Duration(
+                                            milliseconds:
+                                                timer.elapsedMilliseconds),
+                                        startDate: DateTime
+                                            .fromMillisecondsSinceEpoch(timer
+                                                    .startMillisecondssinceepoch *
+                                                1000),
+                                        countTime: countTime,
+                                        description: description,
+                                        sprint: sprint);
+                                  });
                                   await sqlDatabase.stop();
                                   _isAnimating = false;
                                   _refreshController.requestRefresh();
+                                } catch (e) {
+                                  print("error ao upload: $e");
+                                  //todo try again or cancel
                                 }
-                                setState(() {});
-                              }),
-                        ),
+                                snackbar.close();
+                              } else {
+                                await sqlDatabase.stop();
+                                _isAnimating = false;
+                                _refreshController.requestRefresh();
+                              }
+                              setState(() {});
+                            }),
                       ),
-                      Positioned(
-                        bottom: 0,
-                        left: 0,
-                        right: 0,
-                        child: ConstrainedBox(
-                          constraints: BoxConstraints(
-                            minHeight: 64.0,
-                            maxHeight: heightFinal - data.size.width,
-                          ),
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: <Widget>[
-                              _isAnimating
-                                  ? Container()
-                                  : Row(
-                                      children: <Widget>[
-                                        Padding(
-                                          padding: const EdgeInsets.only(
-                                              left: 16, top: 0, bottom: 0),
-                                          child: FlatButton(
-                                            child: Text(
-                                              'Pending',
-                                              textAlign: TextAlign.left,
-                                              style: TextStyle(
-                                                  shadows: _isPendingView
-                                                      ? <Shadow>[
-                                                          Shadow(
-                                                            offset:
-                                                                Offset(0, 0),
-                                                            blurRadius: 4,
-                                                            color:
-                                                                Color.fromARGB(
-                                                                    127,
-                                                                    0,
-                                                                    0,
-                                                                    0),
-                                                          )
-                                                        ]
-                                                      : null,
-                                                  fontSize: 18,
-                                                  fontWeight: FontWeight.w400,
-                                                  color: Colors.white),
-                                            ),
-                                            onPressed: () {
-                                              setState(() {
-                                                _isPendingView = true;
-                                                if (this._jiraIssues != null) {
-                                                  this._selectedIssue = this
-                                                      ._jiraIssues
-                                                      .issues[0];
-                                                }
-                                                countTime = true;
-                                              });
-                                            },
-                                          ),
-                                        ),
-                                        Expanded(
-                                          child: Container(),
-                                        ),
-                                        Padding(
-                                          padding: const EdgeInsets.only(
-                                              top: 0, bottom: 0, right: 16),
-                                          child: FlatButton(
-                                            child: Text(
-                                              'Extra',
-                                              textAlign: TextAlign.right,
-                                              style: TextStyle(
-                                                  shadows: !_isPendingView
-                                                      ? <Shadow>[
-                                                          Shadow(
-                                                            offset:
-                                                                Offset(0, 0),
-                                                            blurRadius: 4,
-                                                            color:
-                                                                Color.fromARGB(
-                                                                    127,
-                                                                    0,
-                                                                    0,
-                                                                    0),
-                                                          )
-                                                        ]
-                                                      : null,
-                                                  fontSize: 18,
-                                                  fontWeight: FontWeight.w400,
-                                                  color: Colors.white),
-                                            ),
-                                            onPressed: () {
-                                              setState(() {
-                                                _isPendingView = false;
-                                                this._selectedIssue = Issue(
-                                                    fields: Fields(
-                                                        summary:
-                                                            _extraDescriptionController
-                                                                .text));
-                                              });
-                                            },
-                                          ),
-                                        )
-                                      ],
+                      Expanded(child: Container(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: <Widget>[
+                            _isAnimating
+                                ? Container()
+                                : Row(
+                              children: <Widget>[
+                                Padding(
+                                  padding: const EdgeInsets.only(
+                                      left: 16, top: 0, bottom: 0),
+                                  child: FlatButton(
+                                    child: Text(
+                                      'Pending',
+                                      textAlign: TextAlign.left,
+                                      style: TextStyle(
+                                          shadows: _isPendingView
+                                              ? <Shadow>[
+                                            Shadow(
+                                              offset: Offset(0, 0),
+                                              blurRadius: 4,
+                                              color: Color.fromARGB(
+                                                  127, 0, 0, 0),
+                                            )
+                                          ]
+                                              : null,
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.w400,
+                                          color: Colors.white),
                                     ),
-                              AnimatedContainer(
-                                height: !_isAnimating
-                                    ? heightFinal - data.size.width - 48
-                                    : 0,
-                                child: Card(
-                                    clipBehavior: Clip.antiAlias,
-                                    margin: EdgeInsets.only(
-                                        left: 8, right: 8, top: 0, bottom: 8),
-                                    elevation: 4,
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(4.0),
+                                    onPressed: () {
+                                      setState(() {
+                                        _isPendingView = true;
+                                        if (this._jiraIssues != null) {
+                                          this._selectedIssue =
+                                          this._jiraIssues.issues[0];
+                                        }
+                                        countTime = true;
+                                      });
+                                    },
+                                  ),
+                                ),
+                                Expanded(
+                                  child: Container(),
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.only(
+                                      top: 0, bottom: 0, right: 16),
+                                  child: FlatButton(
+                                    child: Text(
+                                      'Extra',
+                                      textAlign: TextAlign.right,
+                                      style: TextStyle(
+                                          shadows: !_isPendingView
+                                              ? <Shadow>[
+                                            Shadow(
+                                              offset: Offset(0, 0),
+                                              blurRadius: 4,
+                                              color: Color.fromARGB(
+                                                  127, 0, 0, 0),
+                                            )
+                                          ]
+                                              : null,
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.w400,
+                                          color: Colors.white),
                                     ),
-                                    child: _isPendingView
-                                        ? history(context)
-                                        : extras(context)),
-                                duration: Duration(milliseconds: 300),
-                              ),
-                            ],
-                          ),
+                                    onPressed: () {
+                                      setState(() {
+                                        _isPendingView = false;
+                                        this._selectedIssue = Issue(
+                                            fields: Fields(
+                                                summary:
+                                                _extraDescriptionController
+                                                    .text));
+                                      });
+                                    },
+                                  ),
+                                )
+                              ],
+                            ),
+                            AnimatedContainer(
+                              height: !_isAnimating ? heightFinal / 3 : 0,
+                              child: Card(
+                                  clipBehavior: Clip.antiAlias,
+                                  margin: EdgeInsets.only(
+                                      left: 8, right: 8, top: 0, bottom: 8),
+                                  elevation: 4,
+                                  shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(4.0),
+                                  ),
+                                  child: _isPendingView
+                                      ? history(context)
+                                      : extras(context)),
+                              duration: Duration(milliseconds: 300),
+                            ),
+                          ],
                         ),
-                      ),
+                      ),)
                     ],
                   )
                   /*: Container(child: SpinKitPouringHourglass(color: Colors.white,size: 128,),)*/,

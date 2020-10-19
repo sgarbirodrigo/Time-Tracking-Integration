@@ -15,7 +15,7 @@ class Pomodoro extends StatefulWidget {
       onError,
       onPlay,
       onPause,
-  onBreak,
+      onBreak,
       onCancel,
       onTimeTick;
   Color activeColor;
@@ -23,11 +23,12 @@ class Pomodoro extends StatefulWidget {
   Duration elapsedToday;
   Duration dailyMinimum;
   int numberPomodore;
+  double heightSize;
 
   Pomodoro(
       {this.selectedIssue,
       this.onStop,
-        this.onBreak,
+      this.onBreak,
       this.onCancel,
       this.activeColor,
       this.onStatusChange,
@@ -39,7 +40,7 @@ class Pomodoro extends StatefulWidget {
       this.onPause,
       this.onPlay,
       this.isAnimating,
-      this.onTimeTick}) {
+      this.onTimeTick,  this.heightSize}) {
     if (this.selectedIssue != null) {
       if (this.selectedIssue.fields != null) {
         if (this.selectedIssue.fields.summary.isEmpty) {
@@ -66,7 +67,9 @@ class _PomodoroState extends State<Pomodoro> with TickerProviderStateMixin {
     try {
       Duration duration = animationController.duration *
           (animationController.value == 0 ? 1 : animationController.value);
-      widget.onTimeTick(Duration(milliseconds: animationController.duration.inMilliseconds - duration.inMilliseconds));
+      widget.onTimeTick(Duration(
+          milliseconds: animationController.duration.inMilliseconds -
+              duration.inMilliseconds));
       return '${duration.inMinutes.toString().padLeft(2, '0')}:${(duration.inSeconds % 60).toString().padLeft(2, '0')}';
     } catch (e) {
       print("error: ${e}");
@@ -246,7 +249,9 @@ class _PomodoroState extends State<Pomodoro> with TickerProviderStateMixin {
               : animationController.value;
           Duration duration_new = this.animationController.duration * value;
           alarm.scheduleNotification(
-              "Timer Finished!", "You've been focused for ${duration_new.inMinutes.toString()} minutes into ${widget.selectedIssue.fields.summary.length>25?widget.selectedIssue.fields.summary.substring(0,24):widget.selectedIssue.fields.summary}. Save your progress for later analysis.", duration_new);
+              "Timer Finished!",
+              "You've been focused for ${duration_new.inMinutes.toString()} minutes into ${widget.selectedIssue.fields.summary.length > 25 ? widget.selectedIssue.fields.summary.substring(0, 24) : widget.selectedIssue.fields.summary}. Save your progress for later analysis.",
+              duration_new);
           animationController.reverse(from: value);
           widget.onPlay(duration_new);
         }
@@ -280,218 +285,214 @@ class _PomodoroState extends State<Pomodoro> with TickerProviderStateMixin {
         Container(
           height: 24,
         ),
-        Align(
-          alignment: FractionalOffset.center,
-          child: Container(
-            width: validWidth,
-            decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(
-                      color: Colors.black.withOpacity(0.3), blurRadius: 20)
-                ],
-                color: Colors.white),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: <Widget>[
-                AspectRatio(
-                  aspectRatio: 1.0,
-                  child: Stack(
-                    children: <Widget>[
-                      Positioned.fill(
-                        left: 8,
-                        right: 8,
-                        top: 8,
-                        bottom: 8,
-                        child: AnimatedBuilder(
-                          animation: animationController,
-                          builder: (BuildContext context, Widget child) {
-                            return CustomPaint(
-                              painter: TimerPainter(
-                                  animation: animationController,
-                                  backgroundColor: Colors.white,
-                                  color: widget.activeColor),
-                            );
-                          },
-                        ),
-                      ),
-                      Align(
-                        alignment: FractionalOffset.center,
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          crossAxisAlignment: CrossAxisAlignment.center,
-                          children: <Widget>[
-                            Icon(
-                              widget.countTime ? Icons.timer : Icons.timer_off,
-                              size: 36,
-                              color: widget.countTime
-                                  ? widget.activeColor
-                                  : Colors.grey.withOpacity(0.6),
-                            ),
-                            GestureDetector(
-                              child: AnimatedBuilder(
-                                  animation: animationController,
-                                  builder: (_, Widget child) {
-                                    return Text(
-                                      timerString,
-                                      textAlign: TextAlign.center,
-                                      style: TextStyle(
-                                          fontSize: 72,
-                                          color: widget.activeColor,
-                                          fontWeight: FontWeight.w400),
-                                    );
-                                  }),
-                              onTap: () {
-                                if (!animationController.isAnimating &&
-                                    animationController.value == 0) {
-                                  showCupertinoModalPopup<void>(
-                                    context: context,
-                                    builder: (BuildContext context) {
-                                      return Center(
-                                        child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.center,
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.center,
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: <Widget>[
-                                              Container(
-                                                  width: 300,
-                                                  height: 100,
-                                                  decoration: BoxDecoration(
-                                                      boxShadow: <BoxShadow>[
-                                                        BoxShadow(
-                                                            color: Colors.white,
-                                                            blurRadius: 0.5)
-                                                      ],
-                                                      // border: Border.all(color: Colors.green,width: 4),
-                                                      borderRadius:
-                                                          BorderRadius.all(
-                                                              Radius.circular(
-                                                                  16))),
-                                                  child: ClipRRect(
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                            16),
-                                                    child: CupertinoTimerPicker(
-                                                      mode:
-                                                          CupertinoTimerPickerMode
-                                                              .hms,
-                                                      initialTimerDuration:
-                                                          this.totalDuration,
-                                                      onTimerDurationChanged:
-                                                          (Duration newTimer) {
-                                                        setNewTimer(newTimer);
-                                                      },
-                                                    ),
-                                                  )),
-                                              Row(
-                                                mainAxisAlignment:
-                                                    MainAxisAlignment.center,
-                                                children: <Widget>[
-                                                  RaisedButton(
-                                                    padding:
-                                                        EdgeInsets.symmetric(
-                                                            horizontal: 16),
-                                                    child: Text(
-                                                      "50 min",
-                                                      style: TextStyle(
-                                                          color: widget
-                                                              .activeColor,
-                                                          fontSize: 16),
-                                                    ),
-                                                    color: Colors.white,
-                                                    onPressed: () {
-                                                      setNewTimer(Duration(
-                                                          minutes: 50));
-                                                      Navigator.pop(context);
-                                                    },
-                                                  ),
-                                                  Container(
-                                                    width: 8,
-                                                  ),
-                                                  RaisedButton(
-                                                    child: Text(
-                                                      "25 min",
-                                                      style: TextStyle(
-                                                          color: widget
-                                                              .activeColor,
-                                                          fontSize: 16),
-                                                    ),
-                                                    color: Colors.white,
-                                                    onPressed: () {
-                                                      setNewTimer(Duration(
-                                                          minutes: 25));
-                                                      Navigator.pop(context);
-                                                    },
-                                                  ),
-                                                  Container(
-                                                    width: 8,
-                                                  ),
-                                                  RaisedButton(
-                                                    child: Text(
-                                                      "5 min",
-                                                      style: TextStyle(
-                                                          color: widget
-                                                              .activeColor,
-                                                          fontSize: 16),
-                                                    ),
-                                                    color: Colors.white,
-                                                    onPressed: () {
-                                                      setNewTimer(
-                                                          Duration(minutes: 5));
-                                                      Navigator.pop(context);
-                                                    },
-                                                  ),
-                                                ],
-                                              ),
-                                            ]),
-                                      );
-                                    },
-                                  );
-                                }
-                              },
-                            ),
-                            !animationController.isAnimating
-                                ? ThreeDots(
-                                    dailyMinimum: widget.dailyMinimum,
-                                    elapsedToday: widget.elapsedToday,
-                                    activeColor: widget.activeColor,
-                                    numberOfPomodores: widget.numberPomodore,
-                                    onClick: (Duration remain) {
-                                      //print("returned: $remain");
-                                      setNewTimer(remain);
-                                    },
-                                  )
-                                : Container(),
-                            Container(
-                              height: 16,
-                            ),
-                            Container(
-                              width: validWidth*0.8,
-                              child: Text(
-                                widget.selectedIssue != null
-                                    ? widget.selectedIssue.fields.summary
-                                    : "Select a task",
-                                textAlign: TextAlign.center,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(
-                                    fontWeight: FontWeight.w400,
-                                    fontSize: 18,
-                                    color: Colors.black.withOpacity(0.5)),
-                              ),
-                            ), /*Container(height: 36,)*/
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
+        Container(
+        //width: validWidth,
+          //width: MediaQuery.of(context).size.width*0.7,
+          width: widget.heightSize-96,
+          decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 20)
               ],
-            ),
+              color: Colors.white),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              AspectRatio(
+                aspectRatio: 1.0,
+                child: Stack(
+                  children: <Widget>[
+                    Positioned.fill(
+                      left: 8,
+                      right: 8,
+                      top: 8,
+                      bottom: 8,
+                      child: AnimatedBuilder(
+                        animation: animationController,
+                        builder: (BuildContext context, Widget child) {
+                          return CustomPaint(
+                            painter: TimerPainter(
+                                animation: animationController,
+                                backgroundColor: Colors.white,
+                                color: widget.activeColor),
+                          );
+                        },
+                      ),
+                    ),
+                    Align(
+                      alignment: FractionalOffset.center,
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: <Widget>[
+                          Icon(
+                            widget.countTime ? Icons.timer : Icons.timer_off,
+                            size: 36,
+                            color: widget.countTime
+                                ? widget.activeColor
+                                : Colors.grey.withOpacity(0.6),
+                          ),
+                          GestureDetector(
+                            child: AnimatedBuilder(
+                                animation: animationController,
+                                builder: (_, Widget child) {
+                                  return Text(
+                                    timerString,
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                        fontSize: 72,
+                                        color: widget.activeColor,
+                                        fontWeight: FontWeight.w400),
+                                  );
+                                }),
+                            onTap: () {
+                              if (!animationController.isAnimating &&
+                                  animationController.value == 0) {
+                                showCupertinoModalPopup<void>(
+                                  context: context,
+                                  builder: (BuildContext context) {
+                                    return Center(
+                                      child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.center,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: <Widget>[
+                                            Container(
+                                                width: 300,
+                                                height: 100,
+                                                decoration: BoxDecoration(
+                                                    boxShadow: <BoxShadow>[
+                                                      BoxShadow(
+                                                          color: Colors.white,
+                                                          blurRadius: 0.5)
+                                                    ],
+                                                    // border: Border.all(color: Colors.green,width: 4),
+                                                    borderRadius:
+                                                        BorderRadius.all(
+                                                            Radius.circular(
+                                                                16))),
+                                                child: ClipRRect(
+                                                  borderRadius:
+                                                      BorderRadius.circular(16),
+                                                  child: CupertinoTimerPicker(
+                                                    mode:
+                                                        CupertinoTimerPickerMode
+                                                            .hms,
+                                                    initialTimerDuration:
+                                                        this.totalDuration,
+                                                    onTimerDurationChanged:
+                                                        (Duration newTimer) {
+                                                      setNewTimer(newTimer);
+                                                    },
+                                                  ),
+                                                )),
+                                            Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment.center,
+                                              children: <Widget>[
+                                                RaisedButton(
+                                                  padding: EdgeInsets.symmetric(
+                                                      horizontal: 16),
+                                                  child: Text(
+                                                    "50 min",
+                                                    style: TextStyle(
+                                                        color:
+                                                            widget.activeColor,
+                                                        fontSize: 16),
+                                                  ),
+                                                  color: Colors.white,
+                                                  onPressed: () {
+                                                    setNewTimer(
+                                                        Duration(minutes: 50));
+                                                    Navigator.pop(context);
+                                                  },
+                                                ),
+                                                Container(
+                                                  width: 8,
+                                                ),
+                                                RaisedButton(
+                                                  child: Text(
+                                                    "25 min",
+                                                    style: TextStyle(
+                                                        color:
+                                                            widget.activeColor,
+                                                        fontSize: 16),
+                                                  ),
+                                                  color: Colors.white,
+                                                  onPressed: () {
+                                                    setNewTimer(
+                                                        Duration(minutes: 25));
+                                                    Navigator.pop(context);
+                                                  },
+                                                ),
+                                                Container(
+                                                  width: 8,
+                                                ),
+                                                RaisedButton(
+                                                  child: Text(
+                                                    "5 min",
+                                                    style: TextStyle(
+                                                        color:
+                                                            widget.activeColor,
+                                                        fontSize: 16),
+                                                  ),
+                                                  color: Colors.white,
+                                                  onPressed: () {
+                                                    setNewTimer(
+                                                        Duration(minutes: 5));
+                                                    Navigator.pop(context);
+                                                  },
+                                                ),
+                                              ],
+                                            ),
+                                          ]),
+                                    );
+                                  },
+                                );
+                              }
+                            },
+                          ),
+                          !animationController.isAnimating
+                              ? ThreeDots(
+                                  dailyMinimum: widget.dailyMinimum,
+                                  elapsedToday: widget.elapsedToday,
+                                  activeColor: widget.activeColor,
+                                  numberOfPomodores: widget.numberPomodore,
+                                  onClick: (Duration remain) {
+                                    //print("returned: $remain");
+                                    setNewTimer(remain);
+                                  },
+                                )
+                              : Container(),
+                          Container(
+                            height: 16,
+                          ),
+                          Container(
+                            width: validWidth * 0.8,
+                            child: Text(
+                              widget.selectedIssue != null
+                                  ? widget.selectedIssue.fields.summary
+                                  : "Select a task",
+                              textAlign: TextAlign.center,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                  fontWeight: FontWeight.w400,
+                                  fontSize: 18,
+                                  color: Colors.black.withOpacity(0.5)),
+                            ),
+                          ), /*Container(height: 36,)*/
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
         Container(
@@ -595,9 +596,6 @@ class _PomodoroState extends State<Pomodoro> with TickerProviderStateMixin {
             ],
           ),
         ),
-        Container(
-          height: 24,
-        )
       ],
     );
   }

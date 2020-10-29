@@ -177,7 +177,7 @@ class _PomodoroState extends State<Pomodoro> with TickerProviderStateMixin {
       } else {
         widget.onBreak();
         animationController.value = 0;
-        finishAndSave();
+        finishAndSave(true);
       }
 
       setState(() {});
@@ -204,12 +204,12 @@ class _PomodoroState extends State<Pomodoro> with TickerProviderStateMixin {
                 animationController.value == 0 &&
                 !hasUserCancelled) {
               widget.onPause();
-              finishAndSave();
+              finishAndSave(true);
             }
           });
   }
 
-  void finishAndSave() {
+  void finishAndSave(ring) {
     widget.onStatusChange(false);
     Wakelock.disable();
     Duration elapsedTime = Duration(
@@ -222,7 +222,7 @@ class _PomodoroState extends State<Pomodoro> with TickerProviderStateMixin {
             .toInt());
     animationController.reset();
     setNewTimer(restTime);
-    widget.onStop(elapsedTime, startDate);
+    widget.onStop(elapsedTime, startDate,ring);
     setState(() {});
   }
 
@@ -288,7 +288,7 @@ class _PomodoroState extends State<Pomodoro> with TickerProviderStateMixin {
         Container(
         //width: validWidth,
           //width: MediaQuery.of(context).size.width*0.7,
-          width: widget.heightSize-96,
+          width: widget.heightSize-128,
           decoration: BoxDecoration(
               shape: BoxShape.circle,
               boxShadow: [
@@ -589,7 +589,7 @@ class _PomodoroState extends State<Pomodoro> with TickerProviderStateMixin {
                           }),
                       onPressed: () async {
                         hasUserCancelled = true;
-                        finishAndSave();
+                        finishAndSave(false);
                       },
                     )
                   : Container()

@@ -174,6 +174,7 @@ class _MyTopBarState extends State<MyTopBar> {
                                               setState(() {});
                                             },
                                             child: Container(
+                                              width: MediaQuery.of(context).size.width,
                                               color: jiraSelectedProject_id ==
                                                       correlation
                                                           .jira_project_name
@@ -210,10 +211,11 @@ class _MyTopBarState extends State<MyTopBar> {
                                                   Expanded(
                                                     child: Container(),
                                                   ),
-                                                  Container(
+                                                  Container(width: 100,
                                                     child: DropdownButton(
+                                                        isExpanded:true,
                                                       hint:
-                                                          Text("Toggl Project"),
+                                                          Text("Toggl..."),
                                                       value: _selectedTogglProjectKey[
                                                           correlation
                                                               .jira_project_id],

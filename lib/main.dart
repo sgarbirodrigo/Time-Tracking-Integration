@@ -251,7 +251,9 @@ class _MainPageState extends State<MainPage> {
     try {
       this._jiraIssues = await _jira.getIssues();
       if (this._jiraIssues.issues.length > 0) {
-        this._selectedIssue = this._jiraIssues.issues[0];
+        if(this._selectedIssue == null) {
+          this._selectedIssue = this._jiraIssues.issues[0];
+        }
       }
     } catch (e) {
       print("load jira error: $e");
@@ -424,12 +426,10 @@ class _MainPageState extends State<MainPage> {
                               print("timerData: ${timerData.toJson()}");
                               if (mounted) setState(() {});
                             },
-                            onStop: (elapsedTimes, startDate) async {
+                            onStop: (elapsedTimes, startDate,ring) async {
                               print("stop");
-                              /* await sqlDatabase.pause();*/
                               TimerData timerData =
                                   await sqlDatabase.getTimerData();
-                              bool ring = true;
                               Future.delayed(const Duration(milliseconds: 500),
                                   () async {
                                 while (ring) {
@@ -612,7 +612,7 @@ class _MainPageState extends State<MainPage> {
                               ],
                             ),
                             AnimatedContainer(
-                              height: !_isAnimating ? heightFinal / 3 : 0,
+                              height: !_isAnimating ? (heightFinal / 3)-53 : 0,
                               child: Card(
                                   clipBehavior: Clip.antiAlias,
                                   margin: EdgeInsets.only(

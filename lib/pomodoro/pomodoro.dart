@@ -62,14 +62,16 @@ class _PomodoroState extends State<Pomodoro> with TickerProviderStateMixin {
   TimerData timerData;
   Duration totalDuration = Duration(minutes: 0),
       elapsedDuration = Duration(minutes: 0);
+  Duration timerStringDuration;
 
   String get timerString {
     try {
       Duration duration = animationController.duration *
           (animationController.value == 0 ? 1 : animationController.value);
-      widget.onTimeTick(Duration(
+      timerStringDuration=Duration(
           milliseconds: animationController.duration.inMilliseconds -
-              duration.inMilliseconds));
+              duration.inMilliseconds);
+      widget.onTimeTick(timerStringDuration);
       return '${duration.inMinutes.toString().padLeft(2, '0')}:${(duration.inSeconds % 60).toString().padLeft(2, '0')}';
     } catch (e) {
       print("error: ${e}");
@@ -383,7 +385,7 @@ class _PomodoroState extends State<Pomodoro> with TickerProviderStateMixin {
                                                         CupertinoTimerPickerMode
                                                             .hms,
                                                     initialTimerDuration:
-                                                        this.totalDuration,
+                                                    this.animationController.duration,
                                                     onTimerDurationChanged:
                                                         (Duration newTimer) {
                                                       setNewTimer(newTimer);

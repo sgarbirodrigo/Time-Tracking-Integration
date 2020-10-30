@@ -251,7 +251,7 @@ class _MainPageState extends State<MainPage> {
     try {
       this._jiraIssues = await _jira.getIssues();
       if (this._jiraIssues.issues.length > 0) {
-        if(this._selectedIssue == null) {
+        if (this._selectedIssue == null) {
           this._selectedIssue = this._jiraIssues.issues[0];
         }
       }
@@ -426,7 +426,7 @@ class _MainPageState extends State<MainPage> {
                               print("timerData: ${timerData.toJson()}");
                               if (mounted) setState(() {});
                             },
-                            onStop: (elapsedTimes, startDate,ring) async {
+                            onStop: (elapsedTimes, startDate, ring) async {
                               print("stop");
                               TimerData timerData =
                                   await sqlDatabase.getTimerData();
@@ -530,105 +530,119 @@ class _MainPageState extends State<MainPage> {
                               setState(() {});
                             }),
                       ),
-                      Expanded(child: Container(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: <Widget>[
-                            _isAnimating
-                                ? Container()
-                                : Row(
-                              children: <Widget>[
-                                Padding(
-                                  padding: const EdgeInsets.only(
-                                      left: 16, top: 0, bottom: 0),
-                                  child: FlatButton(
-                                    child: Text(
-                                      'Pending',
-                                      textAlign: TextAlign.left,
-                                      style: TextStyle(
-                                          shadows: _isPendingView
-                                              ? <Shadow>[
-                                            Shadow(
-                                              offset: Offset(0, 0),
-                                              blurRadius: 4,
-                                              color: Color.fromARGB(
-                                                  127, 0, 0, 0),
-                                            )
-                                          ]
-                                              : null,
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.w400,
-                                          color: Colors.white),
+                      Expanded(
+                        child: Container(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: <Widget>[
+                              _isAnimating
+                                  ? Container()
+                                  : Row(
+                                      children: <Widget>[
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                              left: 16, top: 0, bottom: 0),
+                                          child: FlatButton(
+                                            child: Text(
+                                              'Pending',
+                                              textAlign: TextAlign.left,
+                                              style: TextStyle(
+                                                  shadows: _isPendingView
+                                                      ? <Shadow>[
+                                                          Shadow(
+                                                            offset:
+                                                                Offset(0, 0),
+                                                            blurRadius: 4,
+                                                            color:
+                                                                Color.fromARGB(
+                                                                    127,
+                                                                    0,
+                                                                    0,
+                                                                    0),
+                                                          )
+                                                        ]
+                                                      : null,
+                                                  fontSize: 18,
+                                                  fontWeight: FontWeight.w400,
+                                                  color: Colors.white),
+                                            ),
+                                            onPressed: () {
+                                              setState(() {
+                                                _isPendingView = true;
+                                                if (this._jiraIssues != null) {
+                                                  this._selectedIssue = this
+                                                      ._jiraIssues
+                                                      .issues[0];
+                                                }
+                                                countTime = true;
+                                              });
+                                            },
+                                          ),
+                                        ),
+                                        Expanded(
+                                          child: Container(),
+                                        ),
+                                        Padding(
+                                          padding: const EdgeInsets.only(
+                                              top: 0, bottom: 0, right: 16),
+                                          child: FlatButton(
+                                            child: Text(
+                                              'Extra',
+                                              textAlign: TextAlign.right,
+                                              style: TextStyle(
+                                                  shadows: !_isPendingView
+                                                      ? <Shadow>[
+                                                          Shadow(
+                                                            offset:
+                                                                Offset(0, 0),
+                                                            blurRadius: 4,
+                                                            color:
+                                                                Color.fromARGB(
+                                                                    127,
+                                                                    0,
+                                                                    0,
+                                                                    0),
+                                                          )
+                                                        ]
+                                                      : null,
+                                                  fontSize: 18,
+                                                  fontWeight: FontWeight.w400,
+                                                  color: Colors.white),
+                                            ),
+                                            onPressed: () {
+                                              setState(() {
+                                                _isPendingView = false;
+                                                this._selectedIssue = Issue(
+                                                    fields: Fields(
+                                                        summary:
+                                                            _extraDescriptionController
+                                                                .text));
+                                              });
+                                            },
+                                          ),
+                                        )
+                                      ],
                                     ),
-                                    onPressed: () {
-                                      setState(() {
-                                        _isPendingView = true;
-                                        if (this._jiraIssues != null) {
-                                          this._selectedIssue =
-                                          this._jiraIssues.issues[0];
-                                        }
-                                        countTime = true;
-                                      });
-                                    },
-                                  ),
-                                ),
-                                Expanded(
-                                  child: Container(),
-                                ),
-                                Padding(
-                                  padding: const EdgeInsets.only(
-                                      top: 0, bottom: 0, right: 16),
-                                  child: FlatButton(
-                                    child: Text(
-                                      'Extra',
-                                      textAlign: TextAlign.right,
-                                      style: TextStyle(
-                                          shadows: !_isPendingView
-                                              ? <Shadow>[
-                                            Shadow(
-                                              offset: Offset(0, 0),
-                                              blurRadius: 4,
-                                              color: Color.fromARGB(
-                                                  127, 0, 0, 0),
-                                            )
-                                          ]
-                                              : null,
-                                          fontSize: 18,
-                                          fontWeight: FontWeight.w400,
-                                          color: Colors.white),
+                              AnimatedContainer(
+                                height:
+                                    !_isAnimating ? (heightFinal / 3) - 53 : 0,
+                                child: Card(
+                                    clipBehavior: Clip.antiAlias,
+                                    margin: EdgeInsets.only(
+                                        left: 8, right: 8, top: 0, bottom: 8),
+                                    elevation: 4,
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(4.0),
                                     ),
-                                    onPressed: () {
-                                      setState(() {
-                                        _isPendingView = false;
-                                        this._selectedIssue = Issue(
-                                            fields: Fields(
-                                                summary:
-                                                _extraDescriptionController
-                                                    .text));
-                                      });
-                                    },
-                                  ),
-                                )
-                              ],
-                            ),
-                            AnimatedContainer(
-                              height: !_isAnimating ? (heightFinal / 3)-53 : 0,
-                              child: Card(
-                                  clipBehavior: Clip.antiAlias,
-                                  margin: EdgeInsets.only(
-                                      left: 8, right: 8, top: 0, bottom: 8),
-                                  elevation: 4,
-                                  shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(4.0),
-                                  ),
-                                  child: _isPendingView
-                                      ? history(context)
-                                      : extras(context)),
-                              duration: Duration(milliseconds: 300),
-                            ),
-                          ],
+                                    child: _isPendingView
+                                        ? history(context)
+                                        : extras(context)),
+                                duration: Duration(milliseconds: 300),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),)
+                      )
                     ],
                   )
                   /*: Container(child: SpinKitPouringHourglass(color: Colors.white,size: 128,),)*/,

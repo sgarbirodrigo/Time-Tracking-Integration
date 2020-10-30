@@ -353,6 +353,11 @@ class _MainPageState extends State<MainPage> {
                           },
                         ),
                       ),
+                      AnimatedContainer(
+                          height: _isAnimating ? (heightFinal / 5) -54: 0,
+                          duration: Duration(milliseconds: 300),
+                          child: Container(),
+                        ),
                       Container(
                         height: (heightFinal / 3) * 2,
                         child: Pomodoro(

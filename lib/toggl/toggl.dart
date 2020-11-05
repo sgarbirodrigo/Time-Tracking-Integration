@@ -133,6 +133,7 @@ class Toggl {
         "created_with": "curl"
       }
     });
+    print("body: $body");
 
     var response = await http.post(
       url,

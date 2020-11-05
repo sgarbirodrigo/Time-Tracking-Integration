@@ -506,7 +506,6 @@ class _MainPageState extends State<MainPage> {
                                 try {
                                   await timerData.timersQueue
                                       .forEach((TimerSQL timer) async {
-                                    print("timer: ${timer.toJson()}");
                                     await _toggl.postTime(
                                         duration: Duration(
                                             milliseconds:
@@ -623,6 +622,7 @@ class _MainPageState extends State<MainPage> {
                                                             _extraDescriptionController
                                                                 .text));
                                               });
+                                              countTime = true;
                                             },
                                           ),
                                         )

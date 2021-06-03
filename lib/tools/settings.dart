@@ -21,10 +21,8 @@ class AppSettings {
         expand: true,
         context: context,
         backgroundColor: Colors.transparent,
-        builder: (context, scrollController) {
-          return ModalWithNavigator(
-            scrollController: scrollController,
-          );
+        builder: (context) {
+          return ModalWithNavigator();
         });
   }
 }

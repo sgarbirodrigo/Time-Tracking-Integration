@@ -77,7 +77,8 @@ class Tools {
   static Color getBackgroundColor(Duration elapsed, Duration minimum) {
     try {
 
-      //elapsed = Duration(milliseconds: Duration(minutes:360).inMilliseconds);
+      elapsed = Duration(milliseconds: Duration(minutes:260).inMilliseconds);
+      print("${elapsed}/${minimum}");
       Color color;
 
       Color zeroColor = Colors.red;
@@ -86,11 +87,11 @@ class Tools {
       Color bestColor = Colors.blue;
 
       double proportion = elapsed.inMilliseconds / minimum.inMilliseconds;
-
+      print(proportion);
       if (proportion < 0.5) {
-        color = Color.lerp(zeroColor, intermedium, proportion);
+        color = Color.lerp(zeroColor, intermedium, proportion/0.5);
       } else if (proportion >= 0.5 && proportion <= 1) {
-        color = Color.lerp(intermedium, minimumColor, proportion);
+        color = Color.lerp(intermedium, minimumColor, (proportion-0.5)/0.5);
       } else {
         color = Color.lerp(minimumColor, bestColor, (proportion - 1));
       }

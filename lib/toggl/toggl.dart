@@ -61,8 +61,7 @@ class Toggl {
     if (tagExtraId != null) {
       //todo get the project id
       http.Response response = await (http.get(
-        Uri.encodeFull(
-            "https://toggl.com/reports/api/v2/summary?&workspace_id=${await _workspace_id}&user_agent=tti&project_ids=${await _project_id}&tag_ids=${tagExtraId}&order_desc=on&order_field=duration"),
+        Uri.parse("https://toggl.com/reports/api/v2/summary?&workspace_id=${await _workspace_id}&user_agent=tti&project_ids=${await _project_id}&tag_ids=${tagExtraId}&order_desc=on&order_field=duration"),
         headers: await _headerAuth,
       ));
       if ((Tools.BodyBytesToJson(response.bodyBytes)["data"] as List)
@@ -101,7 +100,7 @@ class Toggl {
     }
     //todo get the project id
     http.Response response = await (http.get(
-      Uri.encodeFull(
+      Uri.parse(
           "https://toggl.com/reports/api/v2/summary?&workspace_id=${workspaceId}&user_agent=tti&since=${_convertedTogglDate(since)}&until=${_convertedTogglDate(DateTime.now())}&project_ids=${await _project_id}${getBilled}"),
       headers: await _headerAuth,
     ));
@@ -136,7 +135,7 @@ class Toggl {
     print("body: $body");
 
     var response = await http.post(
-      url,
+        Uri.parse(url),
       headers: await _headerAuth,
       body: body,
     );
@@ -145,7 +144,7 @@ class Toggl {
 
   Future<int> getLoggedUserId() async {
     http.Response response = await (http.get(
-      Uri.encodeFull("https://www.toggl.com/api/v8/me"),
+        Uri.parse("https://www.toggl.com/api/v8/me"),
       headers: await _headerAuth,
     ));
     return Tools.BodyBytesToJson(response.bodyBytes)["data"]["id"];
@@ -153,7 +152,7 @@ class Toggl {
 
   Future<Map<int, String>> getUserProjects() async {
     http.Response response = await (http.get(
-      Uri.encodeFull(
+        Uri.parse(
           "https://www.toggl.com/api/v8/workspaces/${await _workspace_id}/projects"),
       headers: await _headerAuth,
     ));
@@ -173,7 +172,7 @@ class Toggl {
 
   Future<Map<int, String>> getWorkspaces() async {
     http.Response response = await (http.get(
-      Uri.encodeFull("https://www.toggl.com/api/v8/workspaces"),
+      Uri.parse("https://www.toggl.com/api/v8/workspaces"),
       headers: await _headerAuth,
     ));
     Map<int, String> workspaces = Map<int, String>();
@@ -193,7 +192,7 @@ class Toggl {
 
   Future<List> getWorkspacesTags() async {
     http.Response response = await (http.get(
-      Uri.encodeFull(
+      Uri.parse(
           "https://www.toggl.com/api/v8/workspaces/${await _workspace_id}/tags"),
       headers: await _headerAuth,
     ));

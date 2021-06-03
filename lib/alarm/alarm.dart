@@ -23,8 +23,7 @@ class Alarm {
           didReceiveLocalNotificationSubject.add(ReceivedNotification(
               id: id, title: title, body: body, payload: payload));
         });
-    var initializationSettings = InitializationSettings(
-        initializationSettingsAndroid, initializationSettingsIOS);
+    var initializationSettings = InitializationSettings(android: initializationSettingsAndroid,iOS: initializationSettingsIOS);
     await flutterLocalNotificationsPlugin.initialize(initializationSettings,
         onSelectNotification: (String payload) async {
           if (payload != null) {
@@ -62,7 +61,7 @@ class Alarm {
         presentAlert: true,
         presentSound: true);
     var platformChannelSpecifics = NotificationDetails(
-        androidPlatformChannelSpecifics, iOSPlatformChannelSpecifics);
+        android:androidPlatformChannelSpecifics, iOS:iOSPlatformChannelSpecifics);
 
     await flutterLocalNotificationsPlugin.schedule(0, title, message,
         scheduledNotificationDateTime, platformChannelSpecifics);

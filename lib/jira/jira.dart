@@ -45,7 +45,7 @@ class Jira {
   Future<dynamic> getAvatar(String url_) async {
     String url = Uri.encodeFull(url_);
     http.Response response = await (http.get(
-      url,
+      Uri.parse(url),
       headers: await headerAuth,
     ));
 
@@ -66,7 +66,7 @@ class Jira {
       String url = Uri.encodeFull(
           rawUrl);
       http.Response response = await (http.get(
-        url,
+        Uri.parse(url),
         headers: await headerAuth,
       ));
 
@@ -95,7 +95,7 @@ class Jira {
         "https://${await _domainId}.atlassian.net/rest/api/2/issue/${key}/transitions?expand=transitions.fields";
 
     var response = await http.post(
-      url,
+      Uri.parse(url),
       headers: await headerAuth,
       body: body,
     );
@@ -105,8 +105,7 @@ class Jira {
 
   Future<Map<String, String>> getProjects() async {
     http.Response response = await (http.get(
-      Uri.encodeFull(
-          "https://${await _domainId}.atlassian.net/rest/api/2/project"),
+      Uri.parse("https://${await _domainId}.atlassian.net/rest/api/2/project"),
       headers: await headerAuth,
     ));
     Map<String, String> projects = Map<String, String>();
@@ -127,8 +126,7 @@ class Jira {
 
   Future<Map<String, dynamic>> getProjectsListAvatar() async {
     http.Response response = await (http.get(
-      Uri.encodeFull(
-          "https://${await _domainId}.atlassian.net/rest/api/2/project"),
+      Uri.parse("https://${await _domainId}.atlassian.net/rest/api/2/project"),
       headers: await headerAuth,
     ));
     Map<String, dynamic> projects = Map<String, dynamic>();

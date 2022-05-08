@@ -15,7 +15,12 @@ App developed to help you integrate your projects in Jira and Toggl with the Pom
 **Usage**
 ---
 
+While in Jira, you should use the Scrum Board to control your projects.
+When starting a sprint, you will have three columns: Todo Doing and Done.
 
+ - Once you put your tasks in Doing, they will appear in this app so you can click on it and start tracking your work/study.
+ - After you finish your pomodoro time, it will save it to toggl so you can generate better reports and save it in jira tasks.
+ - The color of the background will change as long you get closer to your daily target of work/study hours.
 
 ** TODOs **
 ---
